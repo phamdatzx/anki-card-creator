@@ -47,6 +47,9 @@
 - when learn, it will show the root word, the number of other type if existed: example
 -   able (adj), 1N, 2adj
 -   show: show all info with good format
-
+- *the special_definition only need if the meaning is completely different from the root meaning
 ## word parttern
 - this type is learn some specific way to use a word (like: help + sb + with, ...)
+- the input will be like : make a decision
+- LLM should make a gap question like:
+A ___ a decision ...
