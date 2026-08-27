@@ -32,7 +32,7 @@ def fetch_word(
         raise WordsApiError("Enter a word to look up.")
     if not api_key:
         raise WordsApiError(
-            "Missing RapidAPI key. Set rapidapi_key in Tools → Add-ons → VIP Translate → Config."
+            "Missing RapidAPI key. Set rapidapi_key in Tools → Add-ons → Anki Card Creator → Config."
         )
 
     encoded = urllib.parse.quote(cleaned)

@@ -227,7 +227,7 @@ def _family_item_label(item: dict[str, Any]) -> str:
 class LookupDialog(QDialog):
     def __init__(self, parent=None) -> None:
         super().__init__(parent or mw)
-        self.setWindowTitle("VIP Translate")
+        self.setWindowTitle("Anki Card Creator")
         self.resize(600, 560)
 
         self._payload: dict[str, Any] | None = None

@@ -1,72 +1,93 @@
-# VIP Translate
+# Anki Card Creator
 
-Anki add-on: create vocabulary cards from four card types — Normal (WordsAPI or LLM), Phrasal verb, Word form, and Word pattern (OpenAI).
+Anki add-on for creating vocabulary cards from four card types — **Normal** (WordsAPI or LLM), **Phrasal verb**, **Word form**, and **Word pattern** (OpenAI).
 
 ## Install (development)
 
 Prefer a **symlink** so edits in this repo load after an Anki restart.
 
 1. Open Anki → **Tools → Add-ons → View Files** (opens `addons21`; if an add-on is selected, go up one level).
-2. Symlink the `vip_translate` folder from this repo into `addons21` as `vip_translate`:
-
-### Linux / macOS
+2. Remove any old `vip_translate` symlink if you used the previous name.
+3. Symlink this package:
 
 ```bash
-ln -s /path/to/anki-card-creator/vip_translate \
-  ~/.local/share/Anki2/addons21/vip_translate
+ln -s /home/datjax/projects/vip-translate/anki_card_creator \
+  ~/.local/share/Anki2/addons21/anki_card_creator
 ```
 
-On macOS, `addons21` is usually `~/Library/Application Support/Anki2/addons21`.
-
-### Windows
-
-Run **Command Prompt** or **PowerShell as Administrator** (or enable **Settings → System → For developers → Developer Mode** so admin is not required), then:
-
-**Command Prompt:**
-
-```cmd
-mklink /D "%APPDATA%\Anki2\addons21\vip_translate" "C:\path\to\anki-card-creator\vip_translate"
-```
-
-**PowerShell:**
-
-```powershell
-New-Item -ItemType SymbolicLink `
-  -Path "$env:APPDATA\Anki2\addons21\vip_translate" `
-  -Target "C:\path\to\anki-card-creator\vip_translate"
-```
-
-Replace `C:\path\to\anki-card-creator` with the path to your clone of this repo.
-
-3. Fully quit and restart Anki.
+4. Fully quit and restart Anki.
 
 If Anki’s add-ons folder differs (e.g. Flatpak on Linux), use the path shown by **View Files**.
 
 ## Usage
 
 1. Open a deck (deck overview screen).
-2. Click **VIP Translate** in the bottom bar (or **Tools → VIP Translate…**).
-3. Choose a **card type**:
-   - **Normal** — choose **WordsAPI** (default) or **LLM**; check definitions to keep (double-click to edit).
-   - **Phrasal verb** — OpenAI senses for a phrasal verb; same select/edit flow.
-   - **Word form** — OpenAI word family; check related forms; **one card per POS type** (e.g. nouns card + verbs card).
-   - **Word pattern** — OpenAI gap fill (e.g. `make a decision` → `A ___ a decision`).
-4. **Look up** → review/edit → **Create cards** (dialog stays open for more lookups).
+2. Click **Anki Card Creator** in the bottom bar (or **Tools → Anki Card Creator…**).
+3. Choose a **card type** and look up your input.
+4. Review / edit results, check what to include, then **Create cards** (or press **Ctrl+Enter**).
+5. The dialog stays open and clears the previous word after a successful create so you can add more cards quickly.
 
-Cards go into the **currently selected deck**.
+### Card types
+
+| Type | Input | Source | What you get |
+| --- | --- | --- | --- |
+| **Normal** | A single word | **WordsAPI** (default) or **LLM** | One card per selected definition |
+| **Phrasal verb** | A phrasal verb | OpenAI | One card per selected sense |
+| **Word form** | A root word | OpenAI | One card **per related part-of-speech group** (e.g. nouns card + verbs card) |
+| **Word pattern** | A collocation / pattern | OpenAI | One gap-fill card |
+
+#### Normal
+
+- Pick **Source → WordsAPI** (default) or **LLM**.
+- **WordsAPI** returns dictionary definitions with pronunciation and syllable count when available.
+- **LLM** uses OpenAI for dictionary-style senses (requires `openai_api_key`).
+- Double-click a definition to edit it before creating cards.
+
+#### Phrasal verb
+
+- OpenAI returns distinct senses for the phrasal verb.
+- Same select / double-click to edit / create flow as Normal.
+
+#### Word form
+
+- OpenAI returns the root word plus related forms (noun, verb, adjective, etc.).
+- Check related forms to include; uncheck ones you do not want.
+- Double-click a form to edit word, type, or special definition.
+- Creates **separate cards per POS type** — e.g. `able (adj), 2N` → one card for 2 nouns; `able (adj), 1V` → one card for 1 verb.
+- On the card **back**, **related forms appear first**, then the root word and root definition.
+
+#### Word pattern
+
+- OpenAI builds a gap-fill question (e.g. `make a decision` → `She __ a decision to quit her job`).
+- Edit gap, answer, pattern, explanation, and examples before creating one card.
+
+### UI shortcuts & workflow
+
+| Action | How |
+| --- | --- |
+| Look up | **Look up** button or **Enter** in the input field |
+| Create cards | **Create cards** button or **Ctrl+Enter** |
+| Edit a definition / form | Double-click the list item |
+| After create | Input and results clear automatically; dialog stays open |
+
+Cards are added to the **currently selected deck**.
 
 ### Note types
 
 | Card type | Note type | Front | Back |
 | --- | --- | --- | --- |
-| Normal | `VIP Translate` | POS + definition | word, pronunciation, syllables, synonyms, examples |
-| Phrasal verb | `VIP Phrasal Verb` | POS + definition | phrasal verb, synonyms, examples |
-| Word form | `VIP Word Form` | e.g. `able (adj), 2N` (one card per type) | root + forms of that type |
+| Normal | `VIP Translate` | part of speech + definition | word, pronunciation, syllables, synonyms, examples |
+| Phrasal verb | `VIP Phrasal Verb` | part of speech + definition | phrasal verb, synonyms, examples |
+| Word form | `VIP Word Form` | e.g. `able (adj), 2N` | related forms first, then root + root definition |
 | Word pattern | `VIP Word Pattern` | gap sentence | answer, full pattern, explanation, examples |
+
+Card templates use styled sections (labels, badges, example lists) with light and night mode support. Opening the add-on syncs note type templates to the latest version.
 
 ## Config
 
-**Tools → Add-ons → VIP Translate → Config** — set your own keys (not stored in this repo):
+**Tools → Add-ons → Anki Card Creator → Config**
+
+Copy the defaults below and fill in your own keys. Keys are **not** stored in this repo.
 
 ```json
 {
@@ -74,38 +95,60 @@ Cards go into the **currently selected deck**.
   "rapidapi_host": "wordsapiv1.p.rapidapi.com",
   "verify_ssl": false,
   "openai_api_key": "YOUR_OPENAI_API_KEY",
-  "openai_model": "gpt-5-mini",
+  "openai_model": "gpt-4.1-mini",
   "openai_base_url": "https://api.openai.com/v1"
 }
 ```
 
-| Key | Purpose |
-| --- | --- |
-| `rapidapi_key` | Required for **Normal** with WordsAPI. RapidAPI WordsAPI key |
-| `rapidapi_host` | API host (default `wordsapiv1.p.rapidapi.com`) |
-| `verify_ssl` | Certificate verification (default `false`; Anki’s OpenSSL often fails CA checks that Postman passes) |
-| `openai_api_key` | Required for **Normal (LLM)**, **Phrasal verb**, **Word form**, **Word pattern** |
-| `openai_model` | OpenAI model (default `gpt-5-mini`) |
-| `openai_base_url` | API base URL (default OpenAI; change for compatible proxies) |
+### Config reference
 
-## Layout
+| Key | Required for | Description |
+| --- | --- | --- |
+| `rapidapi_key` | Normal (**WordsAPI**) | RapidAPI key for [WordsAPI](https://rapidapi.com/dpventures/api/wordsapiv1). Leave empty if you only use LLM for Normal. |
+| `rapidapi_host` | Normal (WordsAPI) | API host. Default: `wordsapiv1.p.rapidapi.com`. Change only if your RapidAPI subscription uses a different host. |
+| `verify_ssl` | All HTTP requests | `true` = verify TLS certificates; `false` = skip verification (default). Anki’s bundled OpenSSL often fails CA checks that work in Postman or curl; set `false` if you see `CERTIFICATE_VERIFY_FAILED`. |
+| `openai_api_key` | Normal (**LLM**), Phrasal verb, Word form, Word pattern | OpenAI API key (or compatible provider key). |
+| `openai_model` | All LLM card types | Model name. Default: `gpt-5-mini`. Any model that supports structured JSON output works. |
+| `openai_base_url` | All LLM card types | API base URL. Default: `https://api.openai.com/v1`. Change for OpenAI-compatible proxies or local servers. |
+
+### Which keys do I need?
+
+| What you use | Keys to set |
+| --- | --- |
+| Normal with WordsAPI only | `rapidapi_key` |
+| Normal with LLM only | `openai_api_key` |
+| Normal with both sources | `rapidapi_key` + `openai_api_key` |
+| Phrasal verb / Word form / Word pattern | `openai_api_key` |
+| Everything | All keys above |
+
+## Project layout
 
 ```
-vip_translate/
-  __init__.py      # overview button + Tools menu
+anki_card_creator/
+  __init__.py      # deck overview button + Tools menu
   api.py           # WordsAPI client
   llm.py           # OpenAI structured-output client
   prompts.py       # LLM prompts + JSON schemas
-  cards.py         # note types + add notes
-  dialog.py        # type picker / lookup / create UI
-  config.json      # default API settings
+  cards.py         # note types, templates, add notes
+  dialog.py        # card type picker, lookup, create UI
+  config.json      # default config (no secrets)
   manifest.json
 ```
 
 ## Package for sharing
 
 ```bash
-cd vip_translate && zip -r ../vip_translate.ankiaddon *
+cd anki_card_creator && zip -r ../anki-card-creator.ankiaddon *
 ```
 
 Then **Tools → Add-ons → Install from file…**. Remove `__pycache__` first if present.
+
+## Migrating from VIP Translate
+
+If you previously installed the add-on as `vip_translate`:
+
+1. Remove the old symlink: `~/.local/share/Anki2/addons21/vip_translate`
+2. Symlink `anki_card_creator` as shown above
+3. Restart Anki
+
+Your existing notes and decks are unchanged. Note type names (`VIP Translate`, etc.) are kept for compatibility with cards already in your collection.

@@ -26,7 +26,7 @@ def chat_json(
 ) -> dict[str, Any]:
     if not api_key:
         raise LlmError(
-            "Missing OpenAI key. Set openai_api_key in Tools → Add-ons → VIP Translate → Config."
+            "Missing OpenAI key. Set openai_api_key in Tools → Add-ons → Anki Card Creator → Config."
         )
     if not model:
         raise LlmError("Missing openai_model in add-on config.")
