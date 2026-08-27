@@ -1,6 +1,6 @@
 # VIP Translate
 
-Anki add-on: look up a word (WordsAPI), pick definitions, and add cards to the current deck.
+Anki add-on: create vocabulary cards from four card types — Normal (WordsAPI or LLM), Phrasal verb, Word form, and Word pattern (OpenAI).
 
 ## Install (development)
 
@@ -46,28 +46,47 @@ If Anki’s add-ons folder differs (e.g. Flatpak on Linux), use the path shown b
 
 1. Open a deck (deck overview screen).
 2. Click **VIP Translate** in the bottom bar (or **Tools → VIP Translate…**).
-3. Enter a word → **Look up**.
-4. Check the definitions you want → **Create cards**.
+3. Choose a **card type**:
+   - **Normal** — choose **WordsAPI** (default) or **LLM**; check definitions to keep (double-click to edit).
+   - **Phrasal verb** — OpenAI senses for a phrasal verb; same select/edit flow.
+   - **Word form** — OpenAI word family; check related forms; **one card per POS type** (e.g. nouns card + verbs card).
+   - **Word pattern** — OpenAI gap fill (e.g. `make a decision` → `A ___ a decision`).
+4. **Look up** → review/edit → **Create cards** (dialog stays open for more lookups).
 
-Cards go into the **currently selected deck**. The add-on creates/updates a note type named `VIP Translate` (Word, Pronunciation, SyllableCount, PartOfSpeech, Definition, Synonyms, Examples).
+Cards go into the **currently selected deck**.
+
+### Note types
+
+| Card type | Note type | Front | Back |
+| --- | --- | --- | --- |
+| Normal | `VIP Translate` | POS + definition | word, pronunciation, syllables, synonyms, examples |
+| Phrasal verb | `VIP Phrasal Verb` | POS + definition | phrasal verb, synonyms, examples |
+| Word form | `VIP Word Form` | e.g. `able (adj), 2N` (one card per type) | root + forms of that type |
+| Word pattern | `VIP Word Pattern` | gap sentence | answer, full pattern, explanation, examples |
 
 ## Config
 
-**Tools → Add-ons → VIP Translate → Config** — set your own RapidAPI key (not stored in this repo):
+**Tools → Add-ons → VIP Translate → Config** — set your own keys (not stored in this repo):
 
 ```json
 {
   "rapidapi_key": "YOUR_RAPIDAPI_KEY",
   "rapidapi_host": "wordsapiv1.p.rapidapi.com",
-  "verify_ssl": false
+  "verify_ssl": false,
+  "openai_api_key": "YOUR_OPENAI_API_KEY",
+  "openai_model": "gpt-5-mini",
+  "openai_base_url": "https://api.openai.com/v1"
 }
 ```
 
 | Key | Purpose |
 | --- | --- |
-| `rapidapi_key` | Required. Your RapidAPI WordsAPI key |
+| `rapidapi_key` | Required for **Normal** with WordsAPI. RapidAPI WordsAPI key |
 | `rapidapi_host` | API host (default `wordsapiv1.p.rapidapi.com`) |
 | `verify_ssl` | Certificate verification (default `false`; Anki’s OpenSSL often fails CA checks that Postman passes) |
+| `openai_api_key` | Required for **Normal (LLM)**, **Phrasal verb**, **Word form**, **Word pattern** |
+| `openai_model` | OpenAI model (default `gpt-5-mini`) |
+| `openai_base_url` | API base URL (default OpenAI; change for compatible proxies) |
 
 ## Layout
 
@@ -75,8 +94,10 @@ Cards go into the **currently selected deck**. The add-on creates/updates a note
 vip_translate/
   __init__.py      # overview button + Tools menu
   api.py           # WordsAPI client
-  cards.py         # note type + add notes
-  dialog.py        # lookup / definition picker UI
+  llm.py           # OpenAI structured-output client
+  prompts.py       # LLM prompts + JSON schemas
+  cards.py         # note types + add notes
+  dialog.py        # type picker / lookup / create UI
   config.json      # default API settings
   manifest.json
 ```
