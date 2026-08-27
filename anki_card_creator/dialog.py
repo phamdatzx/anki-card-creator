@@ -4,6 +4,7 @@ from enum import Enum
 from typing import Any
 
 from aqt import mw
+from aqt.addons import without_qt5_compat_wrapper
 from aqt.qt import (
     QApplication,
     QButtonGroup,
@@ -19,8 +20,9 @@ from aqt.qt import (
     QPushButton,
     QRadioButton,
     QShortcut,
+    QSize,
     Qt,
-    QStackedWidget,
+    ijkljj:without_qt5_compat_wrapperckedWidget,
     QTextEdit,
     QVBoxLayout,
     QWidget,
@@ -82,10 +84,82 @@ def _split_list(text: str, *, multiline: bool = False) -> list[str]:
     return [part.strip() for part in parts if part.strip()]
 
 
+def _parse_score(value: Any) -> int | None:
+    if value is None or value == "":
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _scores_compact(data: dict[str, Any] | None) -> str:
+    """Short label for list rows, e.g. pop 4/5 · hard 2/5."""
+    if not data:
+        return ""
+    pop_n = _parse_score(data.get("popularity"))
+    diff_n = _parse_score(data.get("difficulty"))
+    parts: list[str] = []
+    if pop_n is not None:
+        parts.append(f"pop {pop_n}/5")
+    if diff_n is not None:
+        parts.append(f"hard {diff_n}/5")
+    return " · ".join(parts)
+
+
+def _score_field_text(value: Any) -> str:
+    parsed = _parse_score(value)
+    return "" if parsed is None else str(parsed)
+
+
+def _read_score_field(text: str) -> int | None:
+    return _parse_score(text.strip())
+
+
 def _item_label(result: dict[str, Any]) -> str:
     pos = result.get("partOfSpeech") or "?"
     definition = result.get("definition") or ""
-    return f"[{pos}] {definition}"
+    scores = _scores_compact(result)
+    body = f"[{pos}] {definition}"
+    if scores:
+        return f"{scores}\n{body}"
+    return body
+
+
+def _family_item_label(item: dict[str, Any]) -> str:
+    word = item.get("word") or "?"
+    pos = item.get("type") or "?"
+    special = item.get("special_definition")
+    scores = _scores_compact(item)
+    if special:
+        body = f"{word} ({pos}) — {special}"
+    else:
+        body = f"{word} ({pos})"
+    if scores:
+        return f"{scores}\n{body}"
+    return body
+
+
+def _fit_list_item(list_widget: QListWidget, item: QListWidgetItem) -> None:
+    """Size the row so wrapped text is fully visible (no horizontal scroll)."""
+    width = max(list_widget.viewport().width() - 28, 80)
+    metrics = list_widget.fontMetrics()
+    bounds = metrics.boundingRect(
+        0,
+        0,
+        width,
+        10_000,
+        Qt.TextFlag.TextWordWrap | Qt.TextFlag.TextExpandTabs,
+        item.text(),
+    )
+    item.setSizeHint(QSize(width, bounds.height() + 10))
+
+
+def _refit_list(list_widget: QListWidget) -> None:
+    for index in range(list_widget.count()):
+        item = list_widget.item(index)
+        if item is not None:
+            _fit_list_item(list_widget, item)
 
 
 def _current_deck_id() -> int:
@@ -111,7 +185,7 @@ class DefinitionDetailDialog(QDialog):
         super().__init__(parent or mw)
         title = f"Edit definition — {word}" if word else "Edit definition"
         self.setWindowTitle(title)
-        self.resize(480, 360)
+        self.resize(480, 400)
         self._original = dict(result)
 
         self._definition = QTextEdit()
@@ -128,12 +202,19 @@ class DefinitionDetailDialog(QDialog):
         self._examples.setPlaceholderText("one example per line, or comma-separated")
         self._examples.setMinimumHeight(80)
 
+        self._popularity = QLineEdit(_score_field_text(result.get("popularity")))
+        self._popularity.setPlaceholderText("1–5")
+        self._difficulty = QLineEdit(_score_field_text(result.get("difficulty")))
+        self._difficulty.setPlaceholderText("1–5")
+
         form = QFormLayout()
         form.setRowWrapPolicy(QFormLayout.RowWrapPolicy.WrapAllRows)
         form.addRow("Definition:", self._definition)
         form.addRow("Part of speech:", self._pos)
         form.addRow("Synonyms:", self._synonyms)
         form.addRow("Examples:", self._examples)
+        form.addRow("Popularity (1–5):", self._popularity)
+        form.addRow("Difficulty (1–5):", self._difficulty)
 
         buttons = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Save
@@ -154,6 +235,8 @@ class DefinitionDetailDialog(QDialog):
         data["examples"] = _split_list(
             self._examples.toPlainText(), multiline=True
         )
+        data["popularity"] = _read_score_field(self._popularity.text())
+        data["difficulty"] = _read_score_field(self._difficulty.text())
         return data
 
 
@@ -161,7 +244,7 @@ class FamilyMemberDialog(QDialog):
     def __init__(self, item: dict[str, Any], parent=None) -> None:
         super().__init__(parent or mw)
         self.setWindowTitle("Edit word form")
-        self.resize(420, 220)
+        self.resize(420, 280)
         self._original = dict(item)
 
         self._word = QLineEdit(str(item.get("word") or ""))
@@ -173,11 +256,17 @@ class FamilyMemberDialog(QDialog):
             "Only if meaning differs a lot from the root; leave empty otherwise"
         )
         self._special.setMinimumHeight(80)
+        self._popularity = QLineEdit(_score_field_text(item.get("popularity")))
+        self._popularity.setPlaceholderText("1–5")
+        self._difficulty = QLineEdit(_score_field_text(item.get("difficulty")))
+        self._difficulty.setPlaceholderText("1–5")
 
         form = QFormLayout()
         form.addRow("Word:", self._word)
         form.addRow("Type:", self._type)
         form.addRow("Special definition:", self._special)
+        form.addRow("Popularity (1–5):", self._popularity)
+        form.addRow("Difficulty (1–5):", self._difficulty)
 
         buttons = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Save
@@ -196,6 +285,8 @@ class FamilyMemberDialog(QDialog):
         data["type"] = self._type.text().strip()
         special = self._special.toPlainText().strip()
         data["special_definition"] = special or None
+        data["popularity"] = _read_score_field(self._popularity.text())
+        data["difficulty"] = _read_score_field(self._difficulty.text())
         return data
 
 
@@ -213,15 +304,6 @@ def _syllable_count_text(payload: dict[str, Any]) -> str:
     if isinstance(syllables, dict) and syllables.get("count") is not None:
         return str(syllables["count"])
     return ""
-
-
-def _family_item_label(item: dict[str, Any]) -> str:
-    word = item.get("word") or "?"
-    pos = item.get("type") or "?"
-    special = item.get("special_definition")
-    if special:
-        return f"{word} ({pos}) — {special}"
-    return f"{word} ({pos})"
 
 
 class LookupDialog(QDialog):
@@ -276,7 +358,7 @@ class LookupDialog(QDialog):
         self._input_stack = QStackedWidget()
         self._input_stack.addWidget(self._build_word_input("Enter a word…"))
         self._input_stack.addWidget(self._build_word_input("Enter a phrasal verb…"))
-        self._input_stack.addWidget(self._build_word_input("Enter a root word…"))
+        self._input_stack.addWidget(self._build_word_input("Enter a word (any form)…"))
         self._input_stack.addWidget(
             self._build_word_input("Enter a pattern (e.g. make a decision)…")
         )
@@ -287,6 +369,11 @@ class LookupDialog(QDialog):
         self._result_stack = QStackedWidget()
         self._def_list = QListWidget()
         self._def_list.setSelectionMode(QListWidget.SelectionMode.NoSelection)
+        self._def_list.setWordWrap(True)
+        self._def_list.setTextElideMode(Qt.TextElideMode.ElideNone)
+        self._def_list.setHorizontalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAlwaysOff
+        )
         self._result_stack.addWidget(self._def_list)
 
         self._form_panel = self._build_word_form_panel()
@@ -326,6 +413,11 @@ class LookupDialog(QDialog):
 
         self._apply_type_ui()
 
+    def resizeEvent(self, event) -> None:  # noqa: N802 - Qt API
+        super().resizeEvent(event)
+        _refit_list(self._def_list)
+        _refit_list(self._family_list)
+
     def _build_word_input(self, placeholder: str) -> QWidget:
         panel = QWidget()
         row = QHBoxLayout(panel)
@@ -355,14 +447,25 @@ class LookupDialog(QDialog):
         self._root_definition.setVerticalScrollBarPolicy(
             Qt.ScrollBarPolicy.ScrollBarAsNeeded
         )
+        self._root_popularity = QLineEdit()
+        self._root_popularity.setPlaceholderText("1–5")
+        self._root_difficulty = QLineEdit()
+        self._root_difficulty.setPlaceholderText("1–5")
 
         form = QFormLayout()
         form.addRow("Root word:", self._root_word)
         form.addRow("Root type:", self._root_type)
         form.addRow("Root definition:", self._root_definition)
+        form.addRow("Root popularity:", self._root_popularity)
+        form.addRow("Root difficulty:", self._root_difficulty)
 
         self._family_list = QListWidget()
         self._family_list.setMinimumHeight(220)
+        self._family_list.setWordWrap(True)
+        self._family_list.setTextElideMode(Qt.TextElideMode.ElideNone)
+        self._family_list.setHorizontalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAlwaysOff
+        )
         family_label = QLabel(
             "Related forms (check to include; double-click to edit):"
         )
@@ -459,6 +562,8 @@ class LookupDialog(QDialog):
         self._root_word.clear()
         self._root_type.clear()
         self._root_definition.clear()
+        self._root_popularity.clear()
+        self._root_difficulty.clear()
         self._pattern_gap.clear()
         self._pattern_answer.clear()
         self._pattern_full.clear()
@@ -470,7 +575,7 @@ class LookupDialog(QDialog):
         hints = {
             CardType.NORMAL: self._normal_hint(),
             CardType.PHRASAL: "Phrasal verb: OpenAI senses — pick definitions to card.",
-            CardType.WORD_FORM: "Word form: OpenAI word family — one card per related type.",
+            CardType.WORD_FORM: "Word form: OpenAI finds the true root + related forms — one card per type.",
             CardType.WORD_PATTERN: "Word pattern: OpenAI gap fill — edit, then create one card.",
         }
         return hints[self._card_type()]
@@ -531,6 +636,7 @@ class LookupDialog(QDialog):
             edited = dialog.result_data()
             item.setData(Qt.ItemDataRole.UserRole, edited)
             item.setText(_item_label(edited))
+            _fit_list_item(self._def_list, item)
 
     def _on_family_double_clicked(self, item: QListWidgetItem) -> None:
         data = item.data(Qt.ItemDataRole.UserRole)
@@ -541,6 +647,7 @@ class LookupDialog(QDialog):
             edited = dialog.result_data()
             item.setData(Qt.ItemDataRole.UserRole, edited)
             item.setText(_family_item_label(edited))
+            _fit_list_item(self._family_list, item)
             self._refresh_form_summary()
 
     def _on_family_item_changed(self, _item: QListWidgetItem) -> None:
@@ -573,6 +680,7 @@ class LookupDialog(QDialog):
             item.setCheckState(Qt.CheckState.Unchecked)
             item.setData(Qt.ItemDataRole.UserRole, dict(result))
             self._def_list.addItem(item)
+            _fit_list_item(self._def_list, item)
 
         self._status.setText(
             f'{payload.get("word", word)} — double-click to edit; '
@@ -586,6 +694,8 @@ class LookupDialog(QDialog):
         self._root_word.setText(str(root.get("word") or ""))
         self._root_type.setText(str(root.get("type") or ""))
         self._root_definition.setPlainText(str(root.get("definition") or ""))
+        self._root_popularity.setText(_score_field_text(root.get("popularity")))
+        self._root_difficulty.setText(_score_field_text(root.get("difficulty")))
         self._family_list.blockSignals(True)
         self._family_list.clear()
         for item_data in payload.get("other") or []:
@@ -600,6 +710,7 @@ class LookupDialog(QDialog):
             item.setCheckState(Qt.CheckState.Checked)
             item.setData(Qt.ItemDataRole.UserRole, dict(item_data))
             self._family_list.addItem(item)
+            _fit_list_item(self._family_list, item)
         self._family_list.blockSignals(False)
         self._refresh_form_summary()
         self._status.setText(
@@ -701,6 +812,8 @@ class LookupDialog(QDialog):
                 "word": self._root_word.text().strip(),
                 "type": self._root_type.text().strip(),
                 "definition": self._root_definition.toPlainText().strip(),
+                "popularity": _read_score_field(self._root_popularity.text()),
+                "difficulty": _read_score_field(self._root_difficulty.text()),
             },
             "other": others,
         }
@@ -739,7 +852,7 @@ class LookupDialog(QDialog):
                 return
         elif card_type is CardType.WORD_FORM:
             if self._word_form_payload is None:
-                showWarning("Look up a root word first.", parent=self)
+                showWarning("Look up a word form first.", parent=self)
                 return
             payload = self._collect_word_form_payload()
             if not payload["rootWord"]["word"]:

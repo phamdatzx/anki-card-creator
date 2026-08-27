@@ -33,26 +33,26 @@ If Anki’s add-ons folder differs (e.g. Flatpak on Linux), use the path shown b
 | --- | --- | --- | --- |
 | **Normal** | A single word | **WordsAPI** (default) or **LLM** | One card per selected definition |
 | **Phrasal verb** | A phrasal verb | OpenAI | One card per selected sense |
-| **Word form** | A root word | OpenAI | One card **per related part-of-speech group** (e.g. nouns card + verbs card) |
+| **Word form** | Any family member (e.g. `neatly`) | OpenAI | LLM picks true root (`neat`) + related forms; one card **per POS group** |
 | **Word pattern** | A collocation / pattern | OpenAI | One gap-fill card |
 
 #### Normal
 
 - Pick **Source → WordsAPI** (default) or **LLM**.
 - **WordsAPI** returns dictionary definitions with pronunciation and syllable count when available.
-- **LLM** uses OpenAI for dictionary-style senses (requires `openai_api_key`).
-- Double-click a definition to edit it before creating cards.
+- **LLM** uses OpenAI for dictionary-style senses (requires `openai_api_key`). Each sense includes **popularity** and **difficulty** (1–5) shown on the list before you create cards.
+- Double-click a definition to edit it (including scores) before creating cards.
 
 #### Phrasal verb
 
-- OpenAI returns distinct senses for the phrasal verb.
+- OpenAI returns distinct senses for the phrasal verb; each sense has its own **popularity** and **difficulty** (1–5).
 - Same select / double-click to edit / create flow as Normal.
 
 #### Word form
 
-- OpenAI returns the root word plus related forms (noun, verb, adjective, etc.).
+- Type any form in the family (root or derived). OpenAI chooses the **true root** (e.g. `neatly` → root `neat`) and returns related forms, each with **popularity** and **difficulty** (1–5).
 - Check related forms to include; uncheck ones you do not want.
-- Double-click a form to edit word, type, or special definition.
+- Double-click a form to edit word, type, special definition, or scores.
 - Creates **separate cards per POS type** — e.g. `able (adj), 2N` → one card for 2 nouns; `able (adj), 1V` → one card for 1 verb.
 - On the card **back**, **related forms appear first**, then the root word and root definition.
 

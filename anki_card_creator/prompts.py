@@ -9,6 +9,31 @@ _STRING_LIST = {
     "items": {"type": "string"},
 }
 
+_SCORE_1_TO_5 = {
+    "type": "integer",
+}
+
+_DEFINITION_RESULT = {
+    "type": "object",
+    "additionalProperties": False,
+    "properties": {
+        "definition": {"type": "string"},
+        "partOfSpeech": {"type": "string"},
+        "synonyms": _STRING_LIST,
+        "examples": _STRING_LIST,
+        "popularity": _SCORE_1_TO_5,
+        "difficulty": _SCORE_1_TO_5,
+    },
+    "required": [
+        "definition",
+        "partOfSpeech",
+        "synonyms",
+        "examples",
+        "popularity",
+        "difficulty",
+    ],
+}
+
 PHRASAL_SCHEMA: dict[str, Any] = {
     "type": "object",
     "additionalProperties": False,
@@ -16,26 +41,14 @@ PHRASAL_SCHEMA: dict[str, Any] = {
         "word": {"type": "string"},
         "results": {
             "type": "array",
-            "items": {
-                "type": "object",
-                "additionalProperties": False,
-                "properties": {
-                    "definition": {"type": "string"},
-                    "partOfSpeech": {"type": "string"},
-                    "synonyms": _STRING_LIST,
-                    "examples": _STRING_LIST,
-                },
-                "required": [
-                    "definition",
-                    "partOfSpeech",
-                    "synonyms",
-                    "examples",
-                ],
-            },
+            "items": _DEFINITION_RESULT,
         },
     },
     "required": ["word", "results"],
 }
+
+# Same shape as phrasal (word + per-sense definition list).
+NORMAL_SCHEMA = PHRASAL_SCHEMA
 
 WORD_FORM_SCHEMA: dict[str, Any] = {
     "type": "object",
@@ -48,8 +61,16 @@ WORD_FORM_SCHEMA: dict[str, Any] = {
                 "word": {"type": "string"},
                 "type": {"type": "string"},
                 "definition": {"type": "string"},
+                "popularity": _SCORE_1_TO_5,
+                "difficulty": _SCORE_1_TO_5,
             },
-            "required": ["word", "type", "definition"],
+            "required": [
+                "word",
+                "type",
+                "definition",
+                "popularity",
+                "difficulty",
+            ],
         },
         "other": {
             "type": "array",
@@ -60,8 +81,16 @@ WORD_FORM_SCHEMA: dict[str, Any] = {
                     "word": {"type": "string"},
                     "type": {"type": "string"},
                     "special_definition": {"type": ["string", "null"]},
+                    "popularity": _SCORE_1_TO_5,
+                    "difficulty": _SCORE_1_TO_5,
                 },
-                "required": ["word", "type", "special_definition"],
+                "required": [
+                    "word",
+                    "type",
+                    "special_definition",
+                    "popularity",
+                    "difficulty",
+                ],
             },
         },
     },
@@ -81,26 +110,37 @@ WORD_PATTERN_SCHEMA: dict[str, Any] = {
     "required": ["gap", "answer", "pattern", "explanation", "examples"],
 }
 
-# Same shape as WordsAPI-style definition lists (Normal + Phrasal).
-NORMAL_SCHEMA = PHRASAL_SCHEMA
+_SCORE_GUIDANCE = """For each sense / form, rate it for learners (not the whole word once):
+- popularity: integer 1–5 (5 = that sense/form is very common in everyday English; 1 = rare / specialist)
+- difficulty: integer 1–5 (5 = that sense/form is very hard for intermediate learners; 1 = easy / beginner-friendly)
+Different senses of the same word can have different scores. Use your best judgment; be consistent."""
 
-_NORMAL_SYSTEM = """You are an English vocabulary learning assistant.
+_NORMAL_SYSTEM = f"""You are an English vocabulary learning assistant.
 Given a single English word, return distinct dictionary-style senses for learners.
 Use clear short definitions, natural examples, and relevant synonyms.
 partOfSpeech should be a short label (noun, verb, adjective, adverb, etc.).
+{_SCORE_GUIDANCE}
 Return only data that matches the schema."""
 
-_PHRASAL_SYSTEM = """You are an English vocabulary learning assistant.
+_PHRASAL_SYSTEM = f"""You are an English vocabulary learning assistant.
 Given a phrasal verb, return distinct senses suitable for learners.
 Use clear short definitions, British/American-neutral examples, and relevant synonyms.
 partOfSpeech should usually be "phrasal verb" unless another label is clearly better.
+{_SCORE_GUIDANCE}
 Return only data that matches the schema."""
 
-_WORD_FORM_SYSTEM = """You are an English vocabulary learning assistant.
-Given a root word, return its word family: the root plus related forms
+_WORD_FORM_SYSTEM = f"""You are an English vocabulary learning assistant.
+The user may type ANY form from a word family (root, adverb, noun, etc.) — not always the root.
+Identify the true morphological base / lemma as rootWord (e.g. input "neatly" → rootWord.word = "neat",
+type adjective; include "neatly" in other as the adverb).
+If the input is already the best root, use it as rootWord.
+Return the word family: rootWord plus related forms in other
 (noun/verb/adjective/adverb/etc.).
+Do not treat a derived form as root just because it was typed.
 Use special_definition for meaning of the related form;
 Keep type labels short (e.g. noun, verb, adjective, adverb).
+{_SCORE_GUIDANCE}
+Rate popularity and difficulty on the rootWord and on each related form separately.
 Return only data that matches the schema."""
 
 _WORD_PATTERN_SYSTEM = """You are an English question creator for learning.
@@ -193,14 +233,14 @@ def lookup_word_form(
 ) -> dict[str, Any]:
     cleaned = word.strip()
     if not cleaned:
-        raise LlmError("Enter a root word to look up.")
+        raise LlmError("Enter a word to look up (any form in the family).")
     return _call(
         api_key=api_key,
         model=model,
         base_url=base_url,
         verify_ssl=verify_ssl,
         system=_WORD_FORM_SYSTEM,
-        user=f"Root word: {cleaned}",
+        user=f"Word (any form; find the true root): {cleaned}",
         schema_name="word_form_lookup",
         schema=WORD_FORM_SCHEMA,
     )
