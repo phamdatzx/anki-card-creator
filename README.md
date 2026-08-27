@@ -137,11 +137,28 @@ anki_card_creator/
 
 ## Package for sharing
 
+From the repo root:
+
 ```bash
-cd anki_card_creator && zip -r ../anki-card-creator.ankiaddon *
+./package.sh
 ```
 
-Then **Tools → Add-ons → Install from file…**. Remove `__pycache__` first if present.
+Or manually:
+
+```bash
+cd anki_card_creator && zip -r ../anki-card-creator.ankiaddon . -x meta.json -x "__pycache__/*"
+```
+
+This creates `anki-card-creator.ankiaddon` in the repo root (without `meta.json`, so your local API keys are not included).
+
+### Install from file in Anki
+
+1. **Tools → Add-ons → Install from file…**
+2. Select `anki-card-creator.ankiaddon`
+3. Restart Anki when prompted
+4. **Tools → Add-ons → Anki Card Creator → Config** — add your API keys
+
+Remove `__pycache__` before packaging if present.
 
 ## Migrating from VIP Translate
 
