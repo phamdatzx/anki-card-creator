@@ -68,6 +68,8 @@ CARD_CSS = """\
   font-size: 1.35em;
   font-weight: 600;
   letter-spacing: 0.01em;
+  line-height: 1.55;
+  white-space: pre-wrap;
 }
 
 .divider {
@@ -251,6 +253,7 @@ WORD_FORM_BACK = (
 WORD_PATTERN_NOTE_TYPE = "VIP Word Pattern"
 WORD_PATTERN_FIELDS = (
     "Gap",
+    "Vietnamese",
     "Answer",
     "Pattern",
     "Explanation",
@@ -266,6 +269,10 @@ WORD_PATTERN_BACK = (
     '<span class="section-label">Answer</span>'
     '<div class="value">{{Answer}}</div>'
     "</div>\n"
+    '{{#Vietnamese}}<div class="section">'
+    '<span class="section-label">Vietnamese</span>'
+    "<div>{{Vietnamese}}</div>"
+    "</div>{{/Vietnamese}}\n"
     '{{#Pattern}}<div class="section">'
     '<span class="section-label">Pattern</span>'
     "<div>{{Pattern}}</div>"
@@ -567,6 +574,7 @@ def add_word_pattern_note(
     model = ensure_word_pattern_note_type(col)
     note = col.new_note(model)
     note["Gap"] = str(payload.get("gap") or "")
+    note["Vietnamese"] = str(payload.get("vietnamese") or "")
     note["Answer"] = str(payload.get("answer") or "")
     note["Pattern"] = str(payload.get("pattern") or "")
     note["Explanation"] = str(payload.get("explanation") or "")

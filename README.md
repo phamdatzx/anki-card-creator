@@ -58,8 +58,10 @@ If Anki’s add-ons folder differs (e.g. Flatpak on Linux), use the path shown b
 
 #### Word pattern
 
-- OpenAI builds a gap-fill question (e.g. `make a decision` → `She __ a decision to quit her job`).
-- Edit gap, answer, pattern, explanation, and examples before creating one card.
+- OpenAI builds a gap-fill in context (1–2 sentences).
+- **Always** hides the entire English pattern.
+- Puts the **Vietnamese meaning** in the gap instead (e.g. `She (đưa ra quyết định) to quit her job.`).
+- Edit gap, Vietnamese, answer, pattern, explanation, and examples before creating one card.
 
 ### UI shortcuts & workflow
 
@@ -79,7 +81,7 @@ Cards are added to the **currently selected deck**.
 | Normal | `VIP Translate` | part of speech + definition | word, pronunciation, syllables, synonyms, examples |
 | Phrasal verb | `VIP Phrasal Verb` | part of speech + definition | phrasal verb, synonyms, examples |
 | Word form | `VIP Word Form` | e.g. `able (adj), 2N` | related forms first, then root + root definition |
-| Word pattern | `VIP Word Pattern` | gap sentence | answer, full pattern, explanation, examples |
+| Word pattern | `VIP Word Pattern` | gap sentence with Vietnamese meaning | answer, Vietnamese, pattern, explanation, examples |
 
 Card templates use styled sections (labels, badges, example lists) with light and night mode support. Opening the add-on syncs note type templates to the latest version.
 

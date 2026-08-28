@@ -102,12 +102,20 @@ WORD_PATTERN_SCHEMA: dict[str, Any] = {
     "additionalProperties": False,
     "properties": {
         "gap": {"type": "string"},
+        "vietnamese": {"type": "string"},
         "answer": {"type": "string"},
         "pattern": {"type": "string"},
         "explanation": {"type": "string"},
         "examples": _STRING_LIST,
     },
-    "required": ["gap", "answer", "pattern", "explanation", "examples"],
+    "required": [
+        "gap",
+        "vietnamese",
+        "answer",
+        "pattern",
+        "explanation",
+        "examples",
+    ],
 }
 
 _SCORE_GUIDANCE = """For each sense / form, rate it for learners (not the whole word once):
@@ -143,14 +151,22 @@ Keep type labels short (e.g. noun, verb, adjective, adverb).
 Rate popularity and difficulty on the rootWord and on each related form separately.
 Return only data that matches the schema."""
 
-_WORD_PATTERN_SYSTEM = """You are an English question creator for learning.
+_WORD_PATTERN_SYSTEM = """You are an English question creator for Vietnamese learners.
 Given a collocation or usage pattern (e.g. "make a decision", "on purpose"),
-create one gap-fill question.
-gap must hide the key lexical item with "__"
-gap can hide all the word or some part: (She __ a decision to quit her job)
-the question should be long enough to provide context(1-2 sentences). Make sure the user can guess the answer.
-answer is the missing text; pattern is the full pattern; explanation briefly
-describes the usage; examples are natural sentences.
+create one gap-fill question in a natural English context (1–2 sentences).
+
+Rules:
+1. ALWAYS hide the ENTIRE target pattern — never leave any part of it visible.
+2. In the gap sentence, put the Vietnamese meaning of that pattern where it was
+   removed, inside parentheses. Example:
+   pattern "make a decision" →
+   gap: "After thinking carefully, she (đưa ra quyết định) to leave the company."
+   answer: "made a decision" (or the exact English words that fill the blank,
+   conjugated to fit the sentence)
+3. vietnamese: short natural Vietnamese gloss of the pattern (same text as inside
+   the parentheses in gap).
+4. pattern: the full English collocation/pattern in base form.
+5. explanation: brief English usage note; examples: natural English sentences.
 Return only data that matches the schema."""
 
 

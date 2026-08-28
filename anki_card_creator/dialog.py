@@ -4,7 +4,6 @@ from enum import Enum
 from typing import Any
 
 from aqt import mw
-from aqt.addons import without_qt5_compat_wrapper
 from aqt.qt import (
     QApplication,
     QButtonGroup,
@@ -17,12 +16,13 @@ from aqt.qt import (
     QLineEdit,
     QListWidget,
     QListWidgetItem,
+    QMouseEvent,
     QPushButton,
     QRadioButton,
     QShortcut,
     QSize,
     Qt,
-    ijkljj:without_qt5_compat_wrapperckedWidget,
+    QStackedWidget,
     QTextEdit,
     QVBoxLayout,
     QWidget,
@@ -45,6 +45,49 @@ from .prompts import (
     lookup_word_form,
     lookup_word_pattern,
 )
+
+
+class CheckToggleListWidget(QListWidget):
+    """QListWidget where a click anywhere on the row toggles the checkbox.
+
+    Clicking the checkbox itself still works once (no double-toggle).
+    Double-click editing is unchanged (two toggles cancel out).
+    """
+
+    def __init__(self, parent=None) -> None:
+        super().__init__(parent)
+        self._press_item: QListWidgetItem | None = None
+        self._press_state: Qt.CheckState | None = None
+
+    def _event_pos(self, event: QMouseEvent):
+        pos = event.position() if hasattr(event, "position") else event.pos()
+        return pos.toPoint() if hasattr(pos, "toPoint") else pos
+
+    def mousePressEvent(self, event: QMouseEvent) -> None:  # noqa: N802
+        item = self.itemAt(self._event_pos(event))
+        self._press_item = item
+        self._press_state = item.checkState() if item is not None else None
+        super().mousePressEvent(event)
+
+    def mouseReleaseEvent(self, event: QMouseEvent) -> None:  # noqa: N802
+        super().mouseReleaseEvent(event)
+        if event.button() != Qt.MouseButton.LeftButton:
+            return
+        item = self.itemAt(self._event_pos(event))
+        if (
+            item is None
+            or item is not self._press_item
+            or self._press_state is None
+            or not (item.flags() & Qt.ItemFlag.ItemIsUserCheckable)
+        ):
+            return
+        # Checkbox click already changed state; only toggle for clicks on the row text.
+        if item.checkState() == self._press_state:
+            item.setCheckState(
+                Qt.CheckState.Unchecked
+                if self._press_state == Qt.CheckState.Checked
+                else Qt.CheckState.Checked
+            )
 
 
 class CardType(Enum):
@@ -367,13 +410,14 @@ class LookupDialog(QDialog):
         self._status.setWordWrap(True)
 
         self._result_stack = QStackedWidget()
-        self._def_list = QListWidget()
+        self._def_list = CheckToggleListWidget()
         self._def_list.setSelectionMode(QListWidget.SelectionMode.NoSelection)
         self._def_list.setWordWrap(True)
         self._def_list.setTextElideMode(Qt.TextElideMode.ElideNone)
         self._def_list.setHorizontalScrollBarPolicy(
             Qt.ScrollBarPolicy.ScrollBarAlwaysOff
         )
+        self._def_list.setCursor(Qt.CursorShape.PointingHandCursor)
         self._result_stack.addWidget(self._def_list)
 
         self._form_panel = self._build_word_form_panel()
@@ -459,15 +503,16 @@ class LookupDialog(QDialog):
         form.addRow("Root popularity:", self._root_popularity)
         form.addRow("Root difficulty:", self._root_difficulty)
 
-        self._family_list = QListWidget()
+        self._family_list = CheckToggleListWidget()
         self._family_list.setMinimumHeight(220)
         self._family_list.setWordWrap(True)
         self._family_list.setTextElideMode(Qt.TextElideMode.ElideNone)
         self._family_list.setHorizontalScrollBarPolicy(
             Qt.ScrollBarPolicy.ScrollBarAlwaysOff
         )
+        self._family_list.setCursor(Qt.CursorShape.PointingHandCursor)
         family_label = QLabel(
-            "Related forms (check to include; double-click to edit):"
+            "Related forms (click row to toggle; double-click to edit):"
         )
 
         layout.addWidget(self._form_summary)
@@ -485,7 +530,17 @@ class LookupDialog(QDialog):
         layout = QVBoxLayout(panel)
         layout.setContentsMargins(0, 0, 0, 0)
 
-        self._pattern_gap = QLineEdit()
+        self._pattern_gap = QTextEdit()
+        self._pattern_gap.setMinimumHeight(110)
+        self._pattern_gap.setAcceptRichText(False)
+        self._pattern_gap.setPlaceholderText(
+            "Gap sentence — e.g. She (đưa ra quyết định) to quit her job."
+        )
+        self._pattern_gap.setVerticalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAsNeeded
+        )
+        self._pattern_vietnamese = QLineEdit()
+        self._pattern_vietnamese.setPlaceholderText("Vietnamese meaning of the pattern")
         self._pattern_answer = QLineEdit()
         self._pattern_full = QLineEdit()
         self._pattern_explanation = QTextEdit()
@@ -497,6 +552,7 @@ class LookupDialog(QDialog):
         form = QFormLayout()
         form.setRowWrapPolicy(QFormLayout.RowWrapPolicy.WrapAllRows)
         form.addRow("Gap (front):", self._pattern_gap)
+        form.addRow("Vietnamese:", self._pattern_vietnamese)
         form.addRow("Answer:", self._pattern_answer)
         form.addRow("Pattern:", self._pattern_full)
         form.addRow("Explanation:", self._pattern_explanation)
@@ -565,6 +621,7 @@ class LookupDialog(QDialog):
         self._root_popularity.clear()
         self._root_difficulty.clear()
         self._pattern_gap.clear()
+        self._pattern_vietnamese.clear()
         self._pattern_answer.clear()
         self._pattern_full.clear()
         self._pattern_explanation.clear()
@@ -683,8 +740,8 @@ class LookupDialog(QDialog):
             _fit_list_item(self._def_list, item)
 
         self._status.setText(
-            f'{payload.get("word", word)} — double-click to edit; '
-            "check definitions, then create cards."
+            f'{payload.get("word", word)} — click a row to select; '
+            "double-click to edit; then create cards."
         )
         self._create_btn.setEnabled(True)
 
@@ -720,7 +777,8 @@ class LookupDialog(QDialog):
 
     def _fill_word_pattern(self, payload: dict[str, Any]) -> None:
         self._word_pattern_payload = payload
-        self._pattern_gap.setText(str(payload.get("gap") or ""))
+        self._pattern_gap.setPlainText(str(payload.get("gap") or ""))
+        self._pattern_vietnamese.setText(str(payload.get("vietnamese") or ""))
         self._pattern_answer.setText(str(payload.get("answer") or ""))
         self._pattern_full.setText(str(payload.get("pattern") or ""))
         self._pattern_explanation.setPlainText(str(payload.get("explanation") or ""))
@@ -768,7 +826,7 @@ class LookupDialog(QDialog):
                         self._status.setText(
                             f'{payload.get("word", text)} · '
                             f'{" · ".join(suffix_parts)}'
-                            " — double-click to edit; check definitions, "
+                            " — click a row to select; double-click to edit; "
                             "then create cards."
                         )
             elif card_type is CardType.PHRASAL:
@@ -820,7 +878,8 @@ class LookupDialog(QDialog):
 
     def _collect_word_pattern_payload(self) -> dict[str, Any]:
         return {
-            "gap": self._pattern_gap.text().strip(),
+            "gap": self._pattern_gap.toPlainText().strip(),
+            "vietnamese": self._pattern_vietnamese.text().strip(),
             "answer": self._pattern_answer.text().strip(),
             "pattern": self._pattern_full.text().strip(),
             "explanation": self._pattern_explanation.toPlainText().strip(),
