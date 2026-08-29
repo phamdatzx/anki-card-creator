@@ -7,16 +7,40 @@ Anki add-on: look up a word (WordsAPI), pick definitions, and add cards to the c
 Prefer a **symlink** so edits in this repo load after an Anki restart.
 
 1. Open Anki → **Tools → Add-ons → View Files** (opens `addons21`; if an add-on is selected, go up one level).
-2. Symlink this package:
+2. Symlink the `vip_translate` folder from this repo into `addons21` as `vip_translate`:
+
+### Linux / macOS
 
 ```bash
-ln -s /home/datjax/projects/vip-translate/vip_translate \
+ln -s /path/to/anki-card-creator/vip_translate \
   ~/.local/share/Anki2/addons21/vip_translate
 ```
 
+On macOS, `addons21` is usually `~/Library/Application Support/Anki2/addons21`.
+
+### Windows
+
+Run **Command Prompt** or **PowerShell as Administrator** (or enable **Settings → System → For developers → Developer Mode** so admin is not required), then:
+
+**Command Prompt:**
+
+```cmd
+mklink /D "%APPDATA%\Anki2\addons21\vip_translate" "C:\path\to\anki-card-creator\vip_translate"
+```
+
+**PowerShell:**
+
+```powershell
+New-Item -ItemType SymbolicLink `
+  -Path "$env:APPDATA\Anki2\addons21\vip_translate" `
+  -Target "C:\path\to\anki-card-creator\vip_translate"
+```
+
+Replace `C:\path\to\anki-card-creator` with the path to your clone of this repo.
+
 3. Fully quit and restart Anki.
 
-If Anki’s add-ons folder differs (e.g. Flatpak), use the path from **View Files**.
+If Anki’s add-ons folder differs (e.g. Flatpak on Linux), use the path shown by **View Files**.
 
 ## Usage
 
