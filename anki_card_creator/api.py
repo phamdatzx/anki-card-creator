@@ -12,7 +12,7 @@ class WordsApiError(Exception):
     """Raised when the WordsAPI request fails."""
 
 
-def _ssl_context(verify_ssl: bool) -> ssl.SSLContext:
+def ssl_context(verify_ssl: bool) -> ssl.SSLContext:
     # Anki's bundled OpenSSL often fails CA checks (e.g. Missing Authority Key
     # Identifier) even when the same URL works in Postman/browsers.
     if not verify_ssl:
@@ -32,7 +32,7 @@ def fetch_word(
         raise WordsApiError("Enter a word to look up.")
     if not api_key:
         raise WordsApiError(
-            "Missing RapidAPI key. Set rapidapi_key in Tools → Add-ons → VIP Translate → Config."
+            "Missing RapidAPI key. Set rapidapi_key in Tools → Add-ons → Anki Card Creator → Config."
         )
 
     encoded = urllib.parse.quote(cleaned)
@@ -55,7 +55,7 @@ def fetch_word(
 
     try:
         with urllib.request.urlopen(
-            request, timeout=20, context=_ssl_context(verify_ssl)
+            request, timeout=20, context=ssl_context(verify_ssl)
         ) as response:
             payload = json.loads(response.read().decode("utf-8"))
     except urllib.error.HTTPError as exc:
