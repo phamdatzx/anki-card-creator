@@ -158,8 +158,11 @@ def _read_score_field(text: str) -> int | None:
 def _item_label(result: dict[str, Any]) -> str:
     pos = result.get("partOfSpeech") or "?"
     definition = result.get("definition") or ""
+    ipa = str(result.get("ipa") or "").strip()
     scores = _scores_compact(result)
     body = f"[{pos}] {definition}"
+    if ipa:
+        body += f"\n{ipa}"
     if scores:
         return f"{scores}\n{body}"
     return body
@@ -169,11 +172,14 @@ def _family_item_label(item: dict[str, Any]) -> str:
     word = item.get("word") or "?"
     pos = item.get("type") or "?"
     special = item.get("special_definition")
+    ipa = str(item.get("ipa") or "").strip()
     scores = _scores_compact(item)
     if special:
         body = f"{word} ({pos}) — {special}"
     else:
         body = f"{word} ({pos})"
+    if ipa:
+        body += f" {ipa}"
     if scores:
         return f"{scores}\n{body}"
     return body
@@ -238,6 +244,7 @@ def _audio_tag(
     part_of_speech: str = "",
     definition: str = "",
     examples: Any = None,
+    ipa: str = "",
 ) -> str:
     """Generate one MP3 and store it in the current Anki collection."""
     instructions = (
@@ -251,6 +258,11 @@ def _audio_tag(
         )
     if definition.strip():
         instructions += f' Intended definition: "{definition.strip()}".'
+    if ipa.strip():
+        instructions += (
+            f" Use this IPA pronunciation exactly: {ipa.strip()}. "
+            "Do not read the IPA symbols aloud."
+        )
     example_text = _as_text(examples, multiline=True)
     if example_text:
         first_example = example_text.splitlines()[0].strip()
@@ -299,6 +311,7 @@ def _definition_audio_tags(
             part_of_speech=str(result.get("partOfSpeech") or ""),
             definition=str(result.get("definition") or ""),
             examples=result.get("examples"),
+            ipa=str(result.get("ipa") or ""),
         )
     return [audio_by_key[_definition_audio_key(word, result)] for result in results]
 
@@ -316,6 +329,8 @@ class DefinitionDetailDialog(QDialog):
         self._definition.setMinimumHeight(80)
 
         self._pos = QLineEdit(str(result.get("partOfSpeech") or ""))
+        self._ipa = QLineEdit(str(result.get("ipa") or ""))
+        self._ipa.setPlaceholderText("/ˈwɜrd/")
 
         self._synonyms = QLineEdit(_as_text(result.get("synonyms")))
         self._synonyms.setPlaceholderText("comma-separated")
@@ -334,6 +349,7 @@ class DefinitionDetailDialog(QDialog):
         form.setRowWrapPolicy(QFormLayout.RowWrapPolicy.WrapAllRows)
         form.addRow("Definition:", self._definition)
         form.addRow("Part of speech:", self._pos)
+        form.addRow("IPA:", self._ipa)
         form.addRow("Synonyms:", self._synonyms)
         form.addRow("Examples:", self._examples)
         form.addRow("Popularity (1–5):", self._popularity)
@@ -354,6 +370,7 @@ class DefinitionDetailDialog(QDialog):
         data = dict(self._original)
         data["definition"] = self._definition.toPlainText().strip()
         data["partOfSpeech"] = self._pos.text().strip()
+        data["ipa"] = self._ipa.text().strip()
         data["synonyms"] = _split_list(self._synonyms.text())
         data["examples"] = _split_list(
             self._examples.toPlainText(), multiline=True
@@ -372,6 +389,8 @@ class FamilyMemberDialog(QDialog):
 
         self._word = QLineEdit(str(item.get("word") or ""))
         self._type = QLineEdit(str(item.get("type") or ""))
+        self._ipa = QLineEdit(str(item.get("ipa") or ""))
+        self._ipa.setPlaceholderText("/ˈwɜrd/")
         special = item.get("special_definition")
         self._special = QTextEdit()
         self._special.setPlainText("" if special is None else str(special))
@@ -387,6 +406,7 @@ class FamilyMemberDialog(QDialog):
         form = QFormLayout()
         form.addRow("Word:", self._word)
         form.addRow("Type:", self._type)
+        form.addRow("IPA:", self._ipa)
         form.addRow("Special definition:", self._special)
         form.addRow("Popularity (1–5):", self._popularity)
         form.addRow("Difficulty (1–5):", self._difficulty)
@@ -406,6 +426,7 @@ class FamilyMemberDialog(QDialog):
         data = dict(self._original)
         data["word"] = self._word.text().strip()
         data["type"] = self._type.text().strip()
+        data["ipa"] = self._ipa.text().strip()
         special = self._special.toPlainText().strip()
         data["special_definition"] = special or None
         data["popularity"] = _read_score_field(self._popularity.text())
@@ -532,6 +553,8 @@ class LookupDialog(QDialog):
         self._form_summary.setWordWrap(True)
         self._root_word = QLineEdit()
         self._root_type = QLineEdit()
+        self._root_ipa = QLineEdit()
+        self._root_ipa.setPlaceholderText("/ˈwɜrd/")
         self._root_definition = QTextEdit()
         self._root_definition.setFixedHeight(40)
         self._root_definition.setVerticalScrollBarPolicy(
@@ -545,6 +568,7 @@ class LookupDialog(QDialog):
         form = QFormLayout()
         form.addRow("Root word:", self._root_word)
         form.addRow("Root type:", self._root_type)
+        form.addRow("Root IPA:", self._root_ipa)
         form.addRow("Root definition:", self._root_definition)
         form.addRow("Root popularity:", self._root_popularity)
         form.addRow("Root difficulty:", self._root_difficulty)
@@ -656,6 +680,7 @@ class LookupDialog(QDialog):
         self._form_summary.setText("")
         self._root_word.clear()
         self._root_type.clear()
+        self._root_ipa.clear()
         self._root_definition.clear()
         self._root_popularity.clear()
         self._root_difficulty.clear()
@@ -777,6 +802,7 @@ class LookupDialog(QDialog):
         root = payload.get("rootWord") or {}
         self._root_word.setText(str(root.get("word") or ""))
         self._root_type.setText(str(root.get("type") or ""))
+        self._root_ipa.setText(str(root.get("ipa") or ""))
         self._root_definition.setPlainText(str(root.get("definition") or ""))
         self._root_popularity.setText(_score_field_text(root.get("popularity")))
         self._root_difficulty.setText(_score_field_text(root.get("difficulty")))
@@ -870,6 +896,7 @@ class LookupDialog(QDialog):
             "rootWord": {
                 "word": self._root_word.text().strip(),
                 "type": self._root_type.text().strip(),
+                "ipa": self._root_ipa.text().strip(),
                 "definition": self._root_definition.toPlainText().strip(),
                 "popularity": _read_score_field(self._root_popularity.text()),
                 "difficulty": _read_score_field(self._root_difficulty.text()),
@@ -970,23 +997,32 @@ class LookupDialog(QDialog):
             elif card_type is CardType.WORD_FORM:
                 root_word = str(payload["rootWord"]["word"])
                 root_type = str(payload["rootWord"].get("type") or "")
-                forms: dict[tuple[str, str], tuple[str, str]] = {}
+                forms: dict[tuple[str, str], tuple[str, str, str, str]] = {}
                 for item in payload["other"]:
                     word = str(item.get("word") or "").strip()
                     part_of_speech = str(item.get("type") or "").strip()
                     if word:
                         forms.setdefault(
                             form_audio_key(word, part_of_speech),
-                            (word, part_of_speech),
+                            (
+                                word,
+                                part_of_speech,
+                                str(item.get("special_definition") or ""),
+                                str(item.get("ipa") or ""),
+                            ),
                         )
                 total = len(forms) + 1
                 self._status.setText(f"Generating pronunciation (1/{total})…")
                 QApplication.processEvents()
                 root_audio = _audio_tag(
-                    root_word, config, part_of_speech=root_type
+                    root_word,
+                    config,
+                    part_of_speech=root_type,
+                    definition=str(payload["rootWord"].get("definition") or ""),
+                    ipa=str(payload["rootWord"].get("ipa") or ""),
                 )
                 audio_by_form: dict[tuple[str, str], str] = {}
-                for index, (key, (word, part_of_speech)) in enumerate(
+                for index, (key, (word, part_of_speech, definition, ipa)) in enumerate(
                     forms.items(), start=2
                 ):
                     self._status.setText(
@@ -994,7 +1030,11 @@ class LookupDialog(QDialog):
                     )
                     QApplication.processEvents()
                     audio_by_form[key] = _audio_tag(
-                        word, config, part_of_speech=part_of_speech
+                        word,
+                        config,
+                        part_of_speech=part_of_speech,
+                        definition=definition,
+                        ipa=ipa,
                     )
                 added = add_word_form_notes(
                     mw.col, deck_id, payload, root_audio, audio_by_form

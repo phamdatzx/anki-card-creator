@@ -19,6 +19,7 @@ _DEFINITION_RESULT = {
     "properties": {
         "definition": {"type": "string"},
         "partOfSpeech": {"type": "string"},
+        "ipa": {"type": "string"},
         "synonyms": _STRING_LIST,
         "examples": _STRING_LIST,
         "popularity": _SCORE_1_TO_5,
@@ -27,6 +28,7 @@ _DEFINITION_RESULT = {
     "required": [
         "definition",
         "partOfSpeech",
+        "ipa",
         "synonyms",
         "examples",
         "popularity",
@@ -61,6 +63,7 @@ WORD_FORM_SCHEMA: dict[str, Any] = {
                 "word": {"type": "string"},
                 "type": {"type": "string"},
                 "definition": {"type": "string"},
+                "ipa": {"type": "string"},
                 "popularity": _SCORE_1_TO_5,
                 "difficulty": _SCORE_1_TO_5,
             },
@@ -68,6 +71,7 @@ WORD_FORM_SCHEMA: dict[str, Any] = {
                 "word",
                 "type",
                 "definition",
+                "ipa",
                 "popularity",
                 "difficulty",
             ],
@@ -81,6 +85,7 @@ WORD_FORM_SCHEMA: dict[str, Any] = {
                     "word": {"type": "string"},
                     "type": {"type": "string"},
                     "special_definition": {"type": ["string", "null"]},
+                    "ipa": {"type": "string"},
                     "popularity": _SCORE_1_TO_5,
                     "difficulty": _SCORE_1_TO_5,
                 },
@@ -88,6 +93,7 @@ WORD_FORM_SCHEMA: dict[str, Any] = {
                     "word",
                     "type",
                     "special_definition",
+                    "ipa",
                     "popularity",
                     "difficulty",
                 ],
@@ -127,6 +133,8 @@ _NORMAL_SYSTEM = f"""You are an English vocabulary learning assistant.
 Given a single English word, return distinct dictionary-style senses for learners.
 Use clear short definitions, natural examples, and relevant synonyms.
 partOfSpeech should be a short label (noun, verb, adjective, adverb, etc.).
+For every sense, provide its precise standard American English IPA in slash notation
+(e.g. /ˈrɛkərd/), using the pronunciation appropriate to that sense.
 {_SCORE_GUIDANCE}
 Return only data that matches the schema."""
 
@@ -134,6 +142,8 @@ _PHRASAL_SYSTEM = f"""You are an English vocabulary learning assistant.
 Given a phrasal verb, return distinct senses suitable for learners.
 Use clear short definitions, British/American-neutral examples, and relevant synonyms.
 partOfSpeech should usually be "phrasal verb" unless another label is clearly better.
+For every sense, provide its precise standard American English IPA in slash notation
+(e.g. /ˈrɛkərd/), using the pronunciation appropriate to that sense.
 {_SCORE_GUIDANCE}
 Return only data that matches the schema."""
 
@@ -147,6 +157,8 @@ Return the word family: rootWord plus related forms in other
 Do not treat a derived form as root just because it was typed.
 Use special_definition for meaning of the related form;
 Keep type labels short (e.g. noun, verb, adjective, adverb).
+Provide precise standard American English IPA in slash notation for rootWord and
+each related form (e.g. /ˈniːtli/).
 {_SCORE_GUIDANCE}
 Rate popularity and difficulty on the rootWord and on each related form separately.
 Return only data that matches the schema."""

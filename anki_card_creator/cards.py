@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from html import escape
 from typing import Any
 
 from anki.collection import Collection
@@ -134,6 +135,17 @@ CARD_CSS = """\
   color: #555;
 }
 .nightMode .family-special { color: #bbb; }
+.family-ipa {
+  margin-top: 0.2em;
+  font-size: 0.88em;
+  color: #666;
+}
+.nightMode .family-ipa { color: #bbb; }
+.audio-control {
+  height: 1.75em;
+  max-width: 12em;
+  vertical-align: middle;
+}
 
 .examples-list {
   margin: 0.2em 0 0;
@@ -191,6 +203,7 @@ CARD_BACK = (
 PHRASAL_NOTE_TYPE = "VIP Phrasal Verb"
 PHRASAL_FIELDS = (
     "Word",
+    "Pronunciation",
     "PartOfSpeech",
     "Definition",
     "Synonyms",
@@ -210,6 +223,10 @@ PHRASAL_BACK = (
     '<span class="section-label">Phrasal verb</span>'
     '<div class="value">{{Word}} {{Audio}}</div>'
     "</div>\n"
+    '{{#Pronunciation}}<div class="section section-meta">'
+    '<span class="section-label">Pronunciation</span>'
+    '<div class="meta-row">{{Pronunciation}}</div>'
+    "</div>{{/Pronunciation}}\n"
     '{{#Synonyms}}<div class="section">'
     '<span class="section-label">Synonyms</span>'
     "<div>{{Synonyms}}</div>"
@@ -227,6 +244,7 @@ WORD_FORM_FIELDS = (
     "FrontSummary",
     "RootWord",
     "RootType",
+    "Pronunciation",
     "RootDefinition",
     "FamilyHtml",
     "Audio",
@@ -249,6 +267,10 @@ WORD_FORM_BACK = (
     '<span class="section-label">Root</span>'
     '<div class="value">{{RootWord}} <span class="badge">{{RootType}}</span> {{Audio}}</div>'
     "</div>\n"
+    '{{#Pronunciation}}<div class="section section-meta">'
+    '<span class="section-label">Pronunciation</span>'
+    '<div class="meta-row">{{Pronunciation}}</div>'
+    "</div>{{/Pronunciation}}\n"
     '{{#RootDefinition}}<div class="section">'
     '<span class="section-label">Root definition</span>'
     "<div>{{RootDefinition}}</div>"
@@ -416,7 +438,7 @@ def build_note(
 ) -> Note:
     note = col.new_note(model)
     note["Word"] = word
-    note["Pronunciation"] = pronunciation
+    note["Pronunciation"] = str(result.get("ipa") or pronunciation)
     note["SyllableCount"] = syllable_count
     note["Audio"] = audio
     note["PartOfSpeech"] = str(result.get("partOfSpeech") or "")
@@ -462,6 +484,7 @@ def add_phrasal_notes(
     for result, audio in zip(results, audio_tags):
         note = col.new_note(model)
         note["Word"] = word
+        note["Pronunciation"] = str(result.get("ipa") or "")
         note["Audio"] = audio
         note["PartOfSpeech"] = str(result.get("partOfSpeech") or "")
         note["Definition"] = str(result.get("definition") or "")
@@ -536,6 +559,20 @@ def form_audio_key(word: str, pos: str) -> tuple[str, str]:
     return (word.strip().casefold(), pos.strip().casefold())
 
 
+def audio_control(sound_tag: str) -> str:
+    """Render a click-only HTML audio control from an Anki sound tag."""
+    prefix, suffix = "[sound:", "]"
+    if not sound_tag.startswith(prefix) or not sound_tag.endswith(suffix):
+        return ""
+    filename = sound_tag[len(prefix) : -len(suffix)]
+    if not filename:
+        return ""
+    return (
+        '<audio class="audio-control" controls preload="none" '
+        f'src="{escape(filename, quote=True)}"></audio>'
+    )
+
+
 def word_form_family_html(
     others: list[Any], audio_by_form: dict[tuple[str, str], str]
 ) -> str:
@@ -545,8 +582,9 @@ def word_form_family_html(
             continue
         word = str(item.get("word") or "")
         pos = str(item.get("type") or "")
-        audio = audio_by_form.get(form_audio_key(word, pos), "")
+        audio = audio_control(audio_by_form.get(form_audio_key(word, pos), ""))
         special = item.get("special_definition")
+        ipa = str(item.get("ipa") or "")
         block = (
             '<div class="family-item">'
             f'<div class="family-word">{word}'
@@ -554,6 +592,8 @@ def word_form_family_html(
         )
         if special:
             block += f'<div class="family-special">{special}</div>'
+        if ipa:
+            block += f'<div class="family-ipa">{ipa}</div>'
         block += "</div>"
         lines.append(block)
     return "\n".join(lines)
@@ -571,6 +611,7 @@ def add_word_form_notes(
     root = payload.get("rootWord") or {}
     root_word = str(root.get("word") or "")
     root_type = str(root.get("type") or "")
+    root_ipa = str(root.get("ipa") or "")
     root_definition = str(root.get("definition") or "")
 
     groups = _group_others_by_type(list(payload.get("other") or []))
@@ -584,9 +625,10 @@ def add_word_form_notes(
         )
         note["RootWord"] = root_word
         note["RootType"] = root_type
+        note["Pronunciation"] = root_ipa
         note["RootDefinition"] = root_definition
         note["FamilyHtml"] = word_form_family_html(items, audio_by_form)
-        note["Audio"] = ""
+        note["Audio"] = audio_control(root_audio)
         note["FrontAudio"] = root_audio
         col.add_note(note, deck_id)
         added += 1

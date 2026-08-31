@@ -39,11 +39,13 @@ If Anki’s add-ons folder differs (e.g. Flatpak on Linux), use the path shown b
 #### Normal
 
 - OpenAI returns dictionary-style senses. Each sense includes **popularity** and **difficulty** (1–5) shown on the list before you create cards.
+- Every sense includes editable standard American English **IPA**, shown on the card back.
 - Double-click a definition to edit it (including scores) before creating cards.
 
 #### Phrasal verb
 
 - OpenAI returns distinct senses for the phrasal verb; each sense has its own **popularity** and **difficulty** (1–5).
+- Every sense includes editable standard American English **IPA**, shown on the card back.
 - Same select / double-click to edit / create flow as Normal.
 
 #### Word form
@@ -51,14 +53,15 @@ If Anki’s add-ons folder differs (e.g. Flatpak on Linux), use the path shown b
 - Type any form in the family (root or derived). OpenAI chooses the **true root** (e.g. `neatly` → root `neat`) and returns related forms, each with **popularity** and **difficulty** (1–5).
 - Check related forms to include; uncheck ones you do not want.
 - Double-click a form to edit word, type, special definition, or scores.
+- Root and related forms include editable standard American English **IPA**; root IPA appears in the root section, and each form’s IPA appears beside that form.
 - Creates **separate cards per POS type** — e.g. `able (adj), 2N` → one card for 2 nouns; `able (adj), 1V` → one card for 1 verb.
 - On the card **back**, **related forms appear first**, then the root word and root definition.
 
 ### Pronunciation audio
 
 - Normal and Phrasal verb cards speak the revealed word on the answer side. Each selected definition receives its own clip, guided by its part of speech, definition, and first example so homographs can use the correct pronunciation.
-- Word form cards play the resolved root word on the front. The answer side plays each related form in its displayed order; a card with three nouns plays all three noun clips in sequence.
-- Word Form TTS asks OpenAI for standard American English pronunciation and supplies each form’s part of speech to help select the right stress and pronunciation.
+- Word form cards play the resolved root word on the front. On the answer side, root and related-form audio use click-only controls; a card with three nouns has one control for each noun, in display order.
+- Word Form TTS uses the LLM-provided IPA, part of speech, and definition to select the intended standard American English pronunciation.
 - TTS is requested only after you click **Create cards**, so abandoned lookups incur no audio cost. Normal and Phrasal use one clip per unique selected sense; Word Form creates its root clip once and one MP3 for each distinct selected form, reused if it appears more than once.
 
 #### Word pattern
