@@ -12,6 +12,73 @@ class LlmError(Exception):
     """Raised when an OpenAI request fails."""
 
 
+def speech_mp3(
+    *,
+    api_key: str,
+    text: str,
+    base_url: str,
+    model: str = "gpt-4o-mini-tts",
+    voice: str = "alloy",
+    instructions: str = "",
+    verify_ssl: bool = False,
+    timeout: int = 60,
+) -> bytes:
+    """Generate MP3 speech for one word or phrase."""
+    cleaned = text.strip()
+    if not api_key:
+        raise LlmError(
+            "Missing OpenAI key. Set openai_api_key in Tools → Add-ons → Anki Card Creator → Config."
+        )
+    if not cleaned:
+        raise LlmError("Cannot generate audio for an empty word.")
+    if not model:
+        raise LlmError("Missing openai_tts_model in add-on config.")
+    if not voice:
+        raise LlmError("Missing openai_tts_voice in add-on config.")
+
+    base = (base_url or "https://api.openai.com/v1").rstrip("/")
+    body: dict[str, str] = {
+        "model": model,
+        "voice": voice,
+        "input": cleaned,
+        "response_format": "mp3",
+    }
+    if instructions.strip():
+        body["instructions"] = instructions.strip()
+    request = urllib.request.Request(
+        f"{base}/audio/speech",
+        data=json.dumps(body).encode("utf-8"),
+        headers={
+            "Accept": "audio/mpeg",
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+            "User-Agent": "Anki Card Creator",
+        },
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(
+            request, timeout=timeout, context=ssl_context(verify_ssl)
+        ) as response:
+            audio = response.read()
+    except urllib.error.HTTPError as exc:
+        raw = exc.read().decode("utf-8", errors="replace")
+        detail = raw or exc.reason
+        try:
+            err = json.loads(raw)
+            if isinstance(err, dict) and isinstance(err.get("error"), dict):
+                detail = err["error"].get("message") or detail
+        except json.JSONDecodeError:
+            pass
+        raise LlmError(f"OpenAI TTS error {exc.code}: {detail}") from exc
+    except urllib.error.URLError as exc:
+        raise LlmError(f"Network error: {exc.reason}") from exc
+
+    if not audio:
+        raise LlmError("OpenAI TTS returned empty audio.")
+    return audio
+
+
 def chat_json(
     *,
     api_key: str,

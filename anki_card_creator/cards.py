@@ -142,7 +142,7 @@ CARD_CSS = """\
 .examples-list li { margin: 0.25em 0; }
 """
 
-# --- Normal (WordsAPI) ---
+# --- Normal ---
 
 NOTE_TYPE_NAME = "VIP Translate"
 FIELDS = (
@@ -153,6 +153,7 @@ FIELDS = (
     "Definition",
     "Synonyms",
     "Examples",
+    "Audio",
 )
 
 CARD_FRONT = (
@@ -165,7 +166,7 @@ CARD_BACK = (
     '<hr class="divider" id="answer">\n'
     '<div class="section section-word">'
     '<span class="section-label">Word</span>'
-    '<div class="value">{{Word}}</div>'
+    '<div class="value">{{Word}} {{Audio}}</div>'
     "</div>\n"
     '{{#Pronunciation}}<div class="section section-meta">'
     '<span class="section-label">Pronunciation</span>'
@@ -194,6 +195,7 @@ PHRASAL_FIELDS = (
     "Definition",
     "Synonyms",
     "Examples",
+    "Audio",
 )
 
 PHRASAL_FRONT = (
@@ -206,7 +208,7 @@ PHRASAL_BACK = (
     '<hr class="divider" id="answer">\n'
     '<div class="section section-word">'
     '<span class="section-label">Phrasal verb</span>'
-    '<div class="value">{{Word}}</div>'
+    '<div class="value">{{Word}} {{Audio}}</div>'
     "</div>\n"
     '{{#Synonyms}}<div class="section">'
     '<span class="section-label">Synonyms</span>'
@@ -227,12 +229,17 @@ WORD_FORM_FIELDS = (
     "RootType",
     "RootDefinition",
     "FamilyHtml",
+    "Audio",
+    "FrontAudio",
 )
 
-WORD_FORM_FRONT = '<div class="prompt">{{FrontSummary}}</div>'
+WORD_FORM_FRONT = (
+    '<div class="prompt">{{FrontSummary}}</div>\n'
+    '<div class="prompt-audio">{{FrontAudio}}</div>'
+)
 
 WORD_FORM_BACK = (
-    "{{FrontSide}}\n"
+    '<div class="prompt">{{FrontSummary}}</div>\n'
     '<hr class="divider" id="answer">\n'
     '{{#FamilyHtml}}<div class="section">'
     '<span class="section-label">Related forms</span>'
@@ -240,7 +247,7 @@ WORD_FORM_BACK = (
     "</div>{{/FamilyHtml}}\n"
     '<div class="section section-word">'
     '<span class="section-label">Root</span>'
-    '<div class="value">{{RootWord}} <span class="badge">{{RootType}}</span></div>'
+    '<div class="value">{{RootWord}} <span class="badge">{{RootType}}</span> {{Audio}}</div>'
     "</div>\n"
     '{{#RootDefinition}}<div class="section">'
     '<span class="section-label">Root definition</span>'
@@ -404,12 +411,14 @@ def build_note(
     word: str,
     pronunciation: str,
     syllable_count: str,
+    audio: str,
     result: dict[str, Any],
 ) -> Note:
     note = col.new_note(model)
     note["Word"] = word
     note["Pronunciation"] = pronunciation
     note["SyllableCount"] = syllable_count
+    note["Audio"] = audio
     note["PartOfSpeech"] = str(result.get("partOfSpeech") or "")
     note["Definition"] = str(result.get("definition") or "")
     note["Synonyms"] = _join(result.get("synonyms"))
@@ -423,13 +432,16 @@ def add_definition_notes(
     word: str,
     pronunciation: str,
     syllable_count: str,
+    audio_tags: list[str],
     results: list[dict[str, Any]],
 ) -> int:
+    if len(audio_tags) != len(results):
+        raise ValueError("Each definition needs one pronunciation clip.")
     model = ensure_note_type(col)
     added = 0
-    for result in results:
+    for result, audio in zip(results, audio_tags):
         note = build_note(
-            col, model, word, pronunciation, syllable_count, result
+            col, model, word, pronunciation, syllable_count, audio, result
         )
         col.add_note(note, deck_id)
         added += 1
@@ -440,13 +452,17 @@ def add_phrasal_notes(
     col: Collection,
     deck_id: int,
     word: str,
+    audio_tags: list[str],
     results: list[dict[str, Any]],
 ) -> int:
+    if len(audio_tags) != len(results):
+        raise ValueError("Each definition needs one pronunciation clip.")
     model = ensure_phrasal_note_type(col)
     added = 0
-    for result in results:
+    for result, audio in zip(results, audio_tags):
         note = col.new_note(model)
         note["Word"] = word
+        note["Audio"] = audio
         note["PartOfSpeech"] = str(result.get("partOfSpeech") or "")
         note["Definition"] = str(result.get("definition") or "")
         note["Synonyms"] = _join(result.get("synonyms"))
@@ -516,18 +532,25 @@ def word_form_front_html(root_word: str, root_type: str, count_label: str) -> st
     )
 
 
-def word_form_family_html(others: list[Any]) -> str:
+def form_audio_key(word: str, pos: str) -> tuple[str, str]:
+    return (word.strip().casefold(), pos.strip().casefold())
+
+
+def word_form_family_html(
+    others: list[Any], audio_by_form: dict[tuple[str, str], str]
+) -> str:
     lines: list[str] = []
     for item in others:
         if not isinstance(item, dict):
             continue
         word = str(item.get("word") or "")
         pos = str(item.get("type") or "")
+        audio = audio_by_form.get(form_audio_key(word, pos), "")
         special = item.get("special_definition")
         block = (
             '<div class="family-item">'
             f'<div class="family-word">{word}'
-            f'<span class="badge">{pos}</span></div>'
+            f'<span class="badge">{pos}</span> {audio}</div>'
         )
         if special:
             block += f'<div class="family-special">{special}</div>'
@@ -540,6 +563,8 @@ def add_word_form_notes(
     col: Collection,
     deck_id: int,
     payload: dict[str, Any],
+    root_audio: str,
+    audio_by_form: dict[tuple[str, str], str],
 ) -> int:
     """Create one card per related-form POS type (e.g. nouns card, verbs card)."""
     model = ensure_word_form_note_type(col)
@@ -560,7 +585,9 @@ def add_word_form_notes(
         note["RootWord"] = root_word
         note["RootType"] = root_type
         note["RootDefinition"] = root_definition
-        note["FamilyHtml"] = word_form_family_html(items)
+        note["FamilyHtml"] = word_form_family_html(items, audio_by_form)
+        note["Audio"] = ""
+        note["FrontAudio"] = root_audio
         col.add_note(note, deck_id)
         added += 1
     return added

@@ -1,8 +1,8 @@
 {
-  "rapidapi_key": "",
-  "rapidapi_host": "wordsapiv1.p.rapidapi.com",
   "verify_ssl": false,
   "openai_api_key": "",
-  "openai_model": "gpt-5-mini",
-  "openai_base_url": "https://api.openai.com/v1"
+  "openai_model": "gpt-4.1-mini",
+  "openai_base_url": "https://api.openai.com/v1",
+  "openai_tts_model": "gpt-4o-mini-tts",
+  "openai_tts_voice": "alloy"
 }

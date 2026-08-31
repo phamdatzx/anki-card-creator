@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from enum import Enum
-from typing import Any
+from typing import Any, Callable
+from uuid import uuid4
 
 from aqt import mw
 from aqt.qt import (
@@ -29,16 +30,16 @@ from aqt.qt import (
 )
 from aqt.utils import qconnect, showWarning, tooltip
 
-from .api import WordsApiError, fetch_word
 from .cards import (
     add_definition_notes,
     add_phrasal_notes,
     add_word_form_notes,
     add_word_pattern_note,
     ensure_all_note_types,
+    form_audio_key,
     word_form_card_summaries,
 )
-from .llm import LlmError
+from .llm import LlmError, speech_mp3
 from .prompts import (
     lookup_normal_word,
     lookup_phrasal_verb,
@@ -95,11 +96,6 @@ class CardType(Enum):
     PHRASAL = "phrasal"
     WORD_FORM = "word_form"
     WORD_PATTERN = "word_pattern"
-
-
-class NormalSource(Enum):
-    WORDSAPI = "wordsapi"
-    LLM = "llm"
 
 
 def _addon_config() -> dict[str, Any]:
@@ -223,6 +219,90 @@ def _openai_kwargs(config: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _tts_kwargs(config: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "api_key": str(config.get("openai_api_key") or ""),
+        "base_url": str(
+            config.get("openai_base_url") or "https://api.openai.com/v1"
+        ),
+        "model": str(config.get("openai_tts_model") or "gpt-4o-mini-tts"),
+        "voice": str(config.get("openai_tts_voice") or "alloy"),
+        "verify_ssl": bool(config.get("verify_ssl", False)),
+    }
+
+
+def _audio_tag(
+    text: str,
+    config: dict[str, Any],
+    *,
+    part_of_speech: str = "",
+    definition: str = "",
+    examples: Any = None,
+) -> str:
+    """Generate one MP3 and store it in the current Anki collection."""
+    instructions = (
+        "Pronounce only the supplied English word naturally in standard American "
+        "English. Do not spell the word or say any labels."
+    )
+    if part_of_speech.strip():
+        instructions += (
+            f" Use the {part_of_speech.strip()} sense to choose the correct "
+            "pronunciation and stress."
+        )
+    if definition.strip():
+        instructions += f' Intended definition: "{definition.strip()}".'
+    example_text = _as_text(examples, multiline=True)
+    if example_text:
+        first_example = example_text.splitlines()[0].strip()
+        if first_example:
+            instructions += f' Example context: "{first_example}".'
+    audio = speech_mp3(
+        text=text,
+        instructions=instructions,
+        **_tts_kwargs(config),
+    )
+    filename = f"anki-card-creator-{uuid4().hex}.mp3"
+    stored_name = mw.col.media.write_data(filename, audio)
+    if isinstance(stored_name, str):
+        filename = stored_name
+    return f"[sound:{filename}]"
+
+
+def _definition_audio_key(
+    word: str, result: dict[str, Any]
+) -> tuple[str, str, str]:
+    return (
+        word.strip().casefold(),
+        str(result.get("partOfSpeech") or "").strip().casefold(),
+        str(result.get("definition") or "").strip().casefold(),
+    )
+
+
+def _definition_audio_tags(
+    word: str,
+    results: list[dict[str, Any]],
+    config: dict[str, Any],
+    on_progress: Callable[[int, int], None],
+) -> list[str]:
+    """Generate one context-aware clip per unique selected definition."""
+    unique_results: dict[tuple[str, str, str], dict[str, Any]] = {}
+    for result in results:
+        unique_results.setdefault(_definition_audio_key(word, result), result)
+
+    audio_by_key: dict[tuple[str, str, str], str] = {}
+    total = len(unique_results)
+    for index, (key, result) in enumerate(unique_results.items(), start=1):
+        on_progress(index, total)
+        audio_by_key[key] = _audio_tag(
+            word,
+            config,
+            part_of_speech=str(result.get("partOfSpeech") or ""),
+            definition=str(result.get("definition") or ""),
+            examples=result.get("examples"),
+        )
+    return [audio_by_key[_definition_audio_key(word, result)] for result in results]
+
+
 class DefinitionDetailDialog(QDialog):
     def __init__(self, result: dict[str, Any], word: str = "", parent=None) -> None:
         super().__init__(parent or mw)
@@ -333,22 +413,6 @@ class FamilyMemberDialog(QDialog):
         return data
 
 
-def _pronunciation_text(payload: dict[str, Any]) -> str:
-    pron = payload.get("pronunciation")
-    if isinstance(pron, dict):
-        return str(pron.get("all") or "")
-    if isinstance(pron, str):
-        return pron
-    return ""
-
-
-def _syllable_count_text(payload: dict[str, Any]) -> str:
-    syllables = payload.get("syllables")
-    if isinstance(syllables, dict) and syllables.get("count") is not None:
-        return str(syllables["count"])
-    return ""
-
-
 class LookupDialog(QDialog):
     def __init__(self, parent=None) -> None:
         super().__init__(parent or mw)
@@ -382,21 +446,6 @@ class LookupDialog(QDialog):
         type_row.addWidget(self._radio_form)
         type_row.addWidget(self._radio_pattern)
         type_row.addStretch(1)
-
-        self._source_group = QButtonGroup(self)
-        self._radio_wordsapi = QRadioButton("WordsAPI")
-        self._radio_llm = QRadioButton("LLM")
-        self._radio_wordsapi.setChecked(True)
-        self._source_group.addButton(self._radio_wordsapi, 0)
-        self._source_group.addButton(self._radio_llm, 1)
-
-        self._source_row = QWidget()
-        source_layout = QHBoxLayout(self._source_row)
-        source_layout.setContentsMargins(0, 0, 0, 0)
-        source_layout.addWidget(QLabel("Source:"))
-        source_layout.addWidget(self._radio_wordsapi)
-        source_layout.addWidget(self._radio_llm)
-        source_layout.addStretch(1)
 
         self._input_stack = QStackedWidget()
         self._input_stack.addWidget(self._build_word_input("Enter a word…"))
@@ -433,7 +482,6 @@ class LookupDialog(QDialog):
 
         layout = QVBoxLayout(self)
         layout.addLayout(type_row)
-        layout.addWidget(self._source_row)
         layout.addWidget(self._input_stack)
         layout.addWidget(self._status)
         layout.addWidget(self._result_stack, stretch=1)
@@ -447,8 +495,6 @@ class LookupDialog(QDialog):
             self._radio_pattern,
         ):
             qconnect(radio.toggled, self._on_type_toggled)
-        for radio in (self._radio_wordsapi, self._radio_llm):
-            qconnect(radio.toggled, self._on_source_toggled)
         qconnect(self._def_list.itemDoubleClicked, self._on_def_double_clicked)
         qconnect(self._family_list.itemDoubleClicked, self._on_family_double_clicked)
         qconnect(self._create_btn.clicked, self._on_create)
@@ -570,11 +616,6 @@ class LookupDialog(QDialog):
             CardType.WORD_PATTERN,
         )[checked]
 
-    def _normal_source(self) -> NormalSource:
-        if self._radio_llm.isChecked():
-            return NormalSource.LLM
-        return NormalSource.WORDSAPI
-
     def _active_input(self) -> tuple[QLineEdit, QPushButton]:
         panel = self._input_stack.currentWidget()
         return panel._line, panel._btn  # noqa: SLF001
@@ -590,8 +631,6 @@ class LookupDialog(QDialog):
             self._radio_phrasal,
             self._radio_form,
             self._radio_pattern,
-            self._radio_wordsapi,
-            self._radio_llm,
         ):
             radio.setEnabled(enabled)
         # Keep create enabled only when not busy and results already allow it.
@@ -630,7 +669,7 @@ class LookupDialog(QDialog):
 
     def _ready_hint(self) -> str:
         hints = {
-            CardType.NORMAL: self._normal_hint(),
+            CardType.NORMAL: "Normal: OpenAI senses — pick definitions to card.",
             CardType.PHRASAL: "Phrasal verb: OpenAI senses — pick definitions to card.",
             CardType.WORD_FORM: "Word form: OpenAI finds the true root + related forms — one card per type.",
             CardType.WORD_PATTERN: "Word pattern: OpenAI gap fill — edit, then create one card.",
@@ -650,16 +689,6 @@ class LookupDialog(QDialog):
         if checked:
             self._apply_type_ui()
 
-    def _on_source_toggled(self, checked: bool) -> None:
-        if checked and self._card_type() is CardType.NORMAL:
-            self._clear_results()
-            self._status.setText(self._normal_hint())
-
-    def _normal_hint(self) -> str:
-        if self._normal_source() is NormalSource.LLM:
-            return "Normal (LLM): OpenAI senses — pick definitions to card."
-        return "Normal (WordsAPI): pick definitions to card."
-
     def _apply_type_ui(self) -> None:
         card_type = self._card_type()
         type_index = {
@@ -669,8 +698,6 @@ class LookupDialog(QDialog):
             CardType.WORD_PATTERN: 3,
         }[card_type]
         self._input_stack.setCurrentIndex(type_index)
-        self._source_row.setVisible(card_type is CardType.NORMAL)
-
         if card_type in (CardType.NORMAL, CardType.PHRASAL):
             self._result_stack.setCurrentIndex(0)
         elif card_type is CardType.WORD_FORM:
@@ -801,34 +828,8 @@ class LookupDialog(QDialog):
 
         try:
             if card_type is CardType.NORMAL:
-                if self._normal_source() is NormalSource.LLM:
-                    payload = lookup_normal_word(text, **_openai_kwargs(config))
-                    self._fill_definition_list(payload, text)
-                else:
-                    payload = fetch_word(
-                        text,
-                        api_key=str(config.get("rapidapi_key") or ""),
-                        host=str(
-                            config.get("rapidapi_host")
-                            or "wordsapiv1.p.rapidapi.com"
-                        ),
-                        verify_ssl=bool(config.get("verify_ssl", False)),
-                    )
-                    pronunciation = _pronunciation_text(payload)
-                    syllable_count = _syllable_count_text(payload)
-                    suffix_parts = []
-                    if pronunciation:
-                        suffix_parts.append(pronunciation)
-                    if syllable_count:
-                        suffix_parts.append(f"{syllable_count} syllables")
-                    self._fill_definition_list(payload, text)
-                    if self._payload and suffix_parts:
-                        self._status.setText(
-                            f'{payload.get("word", text)} · '
-                            f'{" · ".join(suffix_parts)}'
-                            " — click a row to select; double-click to edit; "
-                            "then create cards."
-                        )
+                payload = lookup_normal_word(text, **_openai_kwargs(config))
+                self._fill_definition_list(payload, text)
             elif card_type is CardType.PHRASAL:
                 payload = lookup_phrasal_verb(text, **_openai_kwargs(config))
                 self._fill_definition_list(payload, text)
@@ -838,7 +839,7 @@ class LookupDialog(QDialog):
             else:
                 payload = lookup_word_pattern(text, **_openai_kwargs(config))
                 self._fill_word_pattern(payload)
-        except (WordsApiError, LlmError) as exc:
+        except LlmError as exc:
             self._status.setText(str(exc))
             showWarning(str(exc), parent=self)
         finally:
@@ -888,9 +889,14 @@ class LookupDialog(QDialog):
             ),
         }
 
+    def _show_tts_progress(self, current: int, total: int) -> None:
+        self._status.setText(f"Generating pronunciation ({current}/{total})…")
+        QApplication.processEvents()
+
     def _on_create(self) -> None:
         card_type = self._card_type()
         deck_id = _current_deck_id()
+        config = _addon_config()
 
         # Validate before showing waiting UI.
         if card_type is CardType.NORMAL:
@@ -940,20 +946,59 @@ class LookupDialog(QDialog):
             if card_type is CardType.NORMAL:
                 line, _ = self._active_input()
                 word = str(self._payload.get("word") or line.text().strip())
+                audio_tags = _definition_audio_tags(
+                    word, selected, config, self._show_tts_progress
+                )
                 added = add_definition_notes(
                     mw.col,
                     deck_id,
                     word,
-                    _pronunciation_text(self._payload),
-                    _syllable_count_text(self._payload),
+                    "",
+                    "",
+                    audio_tags,
                     selected,
                 )
             elif card_type is CardType.PHRASAL:
                 line, _ = self._active_input()
                 word = str(self._payload.get("word") or line.text().strip())
-                added = add_phrasal_notes(mw.col, deck_id, word, selected)
+                audio_tags = _definition_audio_tags(
+                    word, selected, config, self._show_tts_progress
+                )
+                added = add_phrasal_notes(
+                    mw.col, deck_id, word, audio_tags, selected
+                )
             elif card_type is CardType.WORD_FORM:
-                added = add_word_form_notes(mw.col, deck_id, payload)
+                root_word = str(payload["rootWord"]["word"])
+                root_type = str(payload["rootWord"].get("type") or "")
+                forms: dict[tuple[str, str], tuple[str, str]] = {}
+                for item in payload["other"]:
+                    word = str(item.get("word") or "").strip()
+                    part_of_speech = str(item.get("type") or "").strip()
+                    if word:
+                        forms.setdefault(
+                            form_audio_key(word, part_of_speech),
+                            (word, part_of_speech),
+                        )
+                total = len(forms) + 1
+                self._status.setText(f"Generating pronunciation (1/{total})…")
+                QApplication.processEvents()
+                root_audio = _audio_tag(
+                    root_word, config, part_of_speech=root_type
+                )
+                audio_by_form: dict[tuple[str, str], str] = {}
+                for index, (key, (word, part_of_speech)) in enumerate(
+                    forms.items(), start=2
+                ):
+                    self._status.setText(
+                        f"Generating pronunciation ({index}/{total})…"
+                    )
+                    QApplication.processEvents()
+                    audio_by_form[key] = _audio_tag(
+                        word, config, part_of_speech=part_of_speech
+                    )
+                added = add_word_form_notes(
+                    mw.col, deck_id, payload, root_audio, audio_by_form
+                )
             else:
                 added = add_word_pattern_note(mw.col, deck_id, payload)
         except Exception as exc:  # noqa: BLE001 - show to user
