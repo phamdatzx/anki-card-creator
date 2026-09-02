@@ -12,7 +12,7 @@ Prefer a **symlink** so edits in this repo load after an Anki restart.
 3. Symlink this package:
 
 ```bash
-ln -s /home/datjax/projects/vip-translate/anki_card_creator \
+ln -s /home/phamdatzx/projects/anki-card-creator/anki_card_creator \
   ~/.local/share/Anki2/addons21/anki_card_creator
 ```
 
@@ -135,14 +135,20 @@ Copy the defaults below and fill in your own keys. Keys are **not** stored in th
 
 ```
 anki_card_creator/
-  __init__.py      # deck overview button + Tools menu
-  api.py           # shared SSL context
-  llm.py           # OpenAI structured-output client
-  prompts.py       # LLM prompts + JSON schemas
-  cards.py         # note types, templates, add notes
-  dialog.py        # card type picker, lookup, create UI
+  __init__.py      # minimal guarded Anki entry point
+  bootstrap.py     # deck overview button + Tools menu registration
+  config.py        # normalized typed configuration
+  openai_client.py # shared synchronous HTTP/TLS/error handling
+  audio.py         # TTS instructions, deduplication, and media storage
+  audio_keys.py    # shared normalized audio identity keys
+  text.py          # pure text/list/score helpers
+  lookups/         # per-card-type prompts, schemas, and payload contracts
+  notes/           # shared CSS/registry and per-card-type note writers
+  ui/              # widgets, formatting, editors, and dialog orchestration
   config.json      # default config (no secrets)
   manifest.json
+tests/             # focused pure unit tests
+pyproject.toml     # pytest and Ruff development configuration
 ```
 
 ## Package for sharing
@@ -168,7 +174,21 @@ This creates `anki-card-creator.ankiaddon` in the repo root (without `meta.json`
 3. Restart Anki when prompted
 4. **Tools → Add-ons → Anki Card Creator → Config** — add your API keys
 
-Remove `__pycache__` before packaging if present.
+The package script recursively includes subpackages and excludes every
+`meta.json` and `__pycache__` path.
+
+## Development verification
+
+The add-on has no third-party runtime dependencies. Pytest and Ruff are
+development-only tools:
+
+```bash
+python3 -m pytest
+ruff check .
+python3 -m compileall -q anki_card_creator
+./package.sh
+git diff --check
+```
 
 ## Migrating from VIP Translate
 

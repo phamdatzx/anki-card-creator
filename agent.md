@@ -13,13 +13,20 @@ modules. Do not add third-party Python dependencies without a clear need.
 
 ```text
 anki_card_creator/
-  __init__.py   # Anki hooks, deck button, and Tools menu
-  dialog.py     # PyQt card creation UI and workflow
-  llm.py        # OpenAI-compatible JSON client
-  prompts.py    # LLM prompts, schemas, and lookup functions
-  cards.py      # Note types, templates, and note creation
-  config.json   # Default configuration; no secrets
-  manifest.json # Add-on metadata
+  __init__.py       # minimal guarded entry point
+  bootstrap.py      # Anki hooks, deck button, and Tools menu
+  config.py         # typed configuration and gpt-5-mini defaults
+  openai_client.py  # synchronous OpenAI chat/TTS transport
+  audio.py          # TTS instructions, deduplication, and media storage
+  audio_keys.py     # shared normalized audio identity keys
+  text.py           # pure text/list/score conversions
+  lookups/          # payload contracts, schemas, and lookup use cases
+  notes/            # shared CSS/registry and note writers
+  ui/               # widgets, formatting, editors, and main dialog
+  config.json       # Default configuration; no secrets
+  manifest.json     # Add-on metadata
+tests/               # pure unit tests
+pyproject.toml       # pytest/Ruff development configuration
 package.sh      # Builds the .ankiaddon archive
 README.md       # User and development documentation
 ```
@@ -27,7 +34,9 @@ README.md       # User and development documentation
 The primary flow is:
 
 ```text
-__init__.py -> dialog.py -> prompts.py + llm.py -> cards.py
+__init__.py -> bootstrap.py -> ui/dialog.py
+ui/dialog.py -> lookups/* + audio.py + notes/*
+lookups/* + audio.py -> openai_client.py
 ```
 
 Keep UI, lookup, and note-persistence responsibilities separated along these
@@ -39,10 +48,11 @@ boundaries.
 - Use `from __future__ import annotations` and modern type hints, matching the
   existing modules.
 - Prefix internal helpers with `_`.
-- Use `LlmError` for user-facing lookup failures.
+- Use `OpenAIError` for user-facing lookup failures.
 - Qt override names may use `# noqa: N802`; keep broad exception handling
   limited to user-facing UI boundaries.
-- Avoid unrelated refactors, particularly in the large `dialog.py` module.
+- Keep pure helpers importable without the Anki-provided `aqt` and `anki`
+  modules. Restrict those imports to `bootstrap.py` and `ui/`.
 
 ## Compatibility and security
 
@@ -61,30 +71,29 @@ boundaries.
 
 For a new card type, update all applicable layers:
 
-1. Add its schema, prompt, and `lookup_*` function in `prompts.py`.
-2. Add its note type fields, templates, and `add_*` function in `cards.py`;
-   register it with `ensure_all_note_types()`.
-3. Add the enum/UI panel plus lookup and creation handlers in `dialog.py`.
+1. Add its payload contract/schema and a module in `lookups/`.
+2. Add a writer module in `notes/` and register it in `notes/registry.py`.
+3. Add its UI panel plus orchestration in `ui/dialog.py`.
 4. Update `README.md` with user-facing behavior and configuration.
 
 ## Verification
 
-There is currently no automated test suite, linter configuration, or CI.
-Run the checks relevant to a change:
+Run the complete local verification workflow:
 
 ```bash
-python3 -m py_compile anki_card_creator/*.py
+python3 -m pytest
+ruff check .
+python3 -m compileall -q anki_card_creator
 ./package.sh
+git diff --check
 ```
 
 For UI and Anki integration changes, install via a symlink or add-on package,
 configure API keys through Anki's add-on config, and fully restart Anki before
-testing. Remove generated `__pycache__` directories before packaging if they
-exist.
+testing. The package script recursively includes subpackages and excludes local
+`meta.json` and `__pycache__` paths.
 
 ## Scope discipline
 
 - Keep changes focused on the requested behavior.
 - Update `README.md` for changed user-visible features or configuration.
-- Treat `PLAN_MULTI_FEATURE.md` as historical planning context, not a source
-  of current requirements.
