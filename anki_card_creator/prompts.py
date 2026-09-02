@@ -18,6 +18,7 @@ _DEFINITION_RESULT = {
     "additionalProperties": False,
     "properties": {
         "definition": {"type": "string"},
+        "vietnamese": {"type": "string"},
         "partOfSpeech": {"type": "string"},
         "ipa": {"type": "string"},
         "synonyms": _STRING_LIST,
@@ -27,6 +28,7 @@ _DEFINITION_RESULT = {
     },
     "required": [
         "definition",
+        "vietnamese",
         "partOfSpeech",
         "ipa",
         "synonyms",
@@ -36,7 +38,7 @@ _DEFINITION_RESULT = {
     ],
 }
 
-PHRASAL_SCHEMA: dict[str, Any] = {
+NORMAL_SCHEMA: dict[str, Any] = {
     "type": "object",
     "additionalProperties": False,
     "properties": {
@@ -49,9 +51,6 @@ PHRASAL_SCHEMA: dict[str, Any] = {
     "required": ["word", "results"],
 }
 
-# Same shape as phrasal (word + per-sense definition list).
-NORMAL_SCHEMA = PHRASAL_SCHEMA
-
 WORD_FORM_SCHEMA: dict[str, Any] = {
     "type": "object",
     "additionalProperties": False,
@@ -63,6 +62,7 @@ WORD_FORM_SCHEMA: dict[str, Any] = {
                 "word": {"type": "string"},
                 "type": {"type": "string"},
                 "definition": {"type": "string"},
+                "vietnamese": {"type": "string"},
                 "ipa": {"type": "string"},
                 "popularity": _SCORE_1_TO_5,
                 "difficulty": _SCORE_1_TO_5,
@@ -71,6 +71,7 @@ WORD_FORM_SCHEMA: dict[str, Any] = {
                 "word",
                 "type",
                 "definition",
+                "vietnamese",
                 "ipa",
                 "popularity",
                 "difficulty",
@@ -130,18 +131,12 @@ _SCORE_GUIDANCE = """For each sense / form, rate it for learners (not the whole 
 Different senses of the same word can have different scores. Use your best judgment; be consistent."""
 
 _NORMAL_SYSTEM = f"""You are an English vocabulary learning assistant.
-Given a single English word, return distinct dictionary-style senses for learners.
-Use clear short definitions, natural examples, and relevant synonyms.
+Given an English word or phrasal verb, return distinct dictionary-style senses
+for learners.
+Use clear short definitions, Vietnamese meanings, natural examples, and relevant
+synonyms.
 partOfSpeech should be a short label (noun, verb, adjective, adverb, etc.).
-For every sense, provide its precise standard American English IPA in slash notation
-(e.g. /ˈrɛkərd/), using the pronunciation appropriate to that sense.
-{_SCORE_GUIDANCE}
-Return only data that matches the schema."""
-
-_PHRASAL_SYSTEM = f"""You are an English vocabulary learning assistant.
-Given a phrasal verb, return distinct senses suitable for learners.
-Use clear short definitions, British/American-neutral examples, and relevant synonyms.
-partOfSpeech should usually be "phrasal verb" unless another label is clearly better.
+For phrasal verbs, use "phrasal verb" unless another label is clearly better.
 For every sense, provide its precise standard American English IPA in slash notation
 (e.g. /ˈrɛkərd/), using the pronunciation appropriate to that sense.
 {_SCORE_GUIDANCE}
@@ -155,6 +150,7 @@ If the input is already the best root, use it as rootWord.
 Return the word family: rootWord plus related forms in other
 (noun/verb/adjective/adverb/etc.).
 Do not treat a derived form as root just because it was typed.
+Provide a short natural Vietnamese meaning for rootWord.
 Use special_definition for meaning of the related form;
 Keep type labels short (e.g. noun, verb, adjective, adverb).
 Provide precise standard American English IPA in slash notation for rootWord and
@@ -215,39 +211,16 @@ def lookup_normal_word(
 ) -> dict[str, Any]:
     cleaned = word.strip()
     if not cleaned:
-        raise LlmError("Enter a word to look up.")
+        raise LlmError("Enter a word or phrasal verb to look up.")
     return _call(
         api_key=api_key,
         model=model,
         base_url=base_url,
         verify_ssl=verify_ssl,
         system=_NORMAL_SYSTEM,
-        user=f"Word: {cleaned}",
-        schema_name="normal_word_lookup",
+        user=f"Vocabulary entry: {cleaned}",
+        schema_name="vocabulary_entry_lookup",
         schema=NORMAL_SCHEMA,
-    )
-
-
-def lookup_phrasal_verb(
-    phrase: str,
-    *,
-    api_key: str,
-    model: str,
-    base_url: str,
-    verify_ssl: bool = False,
-) -> dict[str, Any]:
-    cleaned = phrase.strip()
-    if not cleaned:
-        raise LlmError("Enter a phrasal verb to look up.")
-    return _call(
-        api_key=api_key,
-        model=model,
-        base_url=base_url,
-        verify_ssl=verify_ssl,
-        system=_PHRASAL_SYSTEM,
-        user=f"Phrasal verb: {cleaned}",
-        schema_name="phrasal_verb_lookup",
-        schema=PHRASAL_SCHEMA,
     )
 
 

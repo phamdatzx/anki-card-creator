@@ -32,7 +32,6 @@ from aqt.utils import qconnect, showWarning, tooltip
 
 from .cards import (
     add_definition_notes,
-    add_phrasal_notes,
     add_word_form_notes,
     add_word_pattern_note,
     ensure_all_note_types,
@@ -42,7 +41,6 @@ from .cards import (
 from .llm import LlmError, speech_mp3
 from .prompts import (
     lookup_normal_word,
-    lookup_phrasal_verb,
     lookup_word_form,
     lookup_word_pattern,
 )
@@ -93,7 +91,6 @@ class CheckToggleListWidget(QListWidget):
 
 class CardType(Enum):
     NORMAL = "normal"
-    PHRASAL = "phrasal"
     WORD_FORM = "word_form"
     WORD_PATTERN = "word_pattern"
 
@@ -248,8 +245,8 @@ def _audio_tag(
 ) -> str:
     """Generate one MP3 and store it in the current Anki collection."""
     instructions = (
-        "Pronounce only the supplied English word naturally in standard American "
-        "English. Do not spell the word or say any labels."
+        "Pronounce only the supplied English word or phrase naturally in standard "
+        "American English. Do not spell it or say any labels."
     )
     if part_of_speech.strip():
         instructions += (
@@ -328,6 +325,7 @@ class DefinitionDetailDialog(QDialog):
         self._definition.setPlainText(str(result.get("definition") or ""))
         self._definition.setMinimumHeight(80)
 
+        self._vietnamese = QLineEdit(str(result.get("vietnamese") or ""))
         self._pos = QLineEdit(str(result.get("partOfSpeech") or ""))
         self._ipa = QLineEdit(str(result.get("ipa") or ""))
         self._ipa.setPlaceholderText("/ˈwɜrd/")
@@ -348,6 +346,7 @@ class DefinitionDetailDialog(QDialog):
         form = QFormLayout()
         form.setRowWrapPolicy(QFormLayout.RowWrapPolicy.WrapAllRows)
         form.addRow("Definition:", self._definition)
+        form.addRow("Vietnamese:", self._vietnamese)
         form.addRow("Part of speech:", self._pos)
         form.addRow("IPA:", self._ipa)
         form.addRow("Synonyms:", self._synonyms)
@@ -369,6 +368,7 @@ class DefinitionDetailDialog(QDialog):
     def result_data(self) -> dict[str, Any]:
         data = dict(self._original)
         data["definition"] = self._definition.toPlainText().strip()
+        data["vietnamese"] = self._vietnamese.text().strip()
         data["partOfSpeech"] = self._pos.text().strip()
         data["ipa"] = self._ipa.text().strip()
         data["synonyms"] = _split_list(self._synonyms.text())
@@ -446,14 +446,12 @@ class LookupDialog(QDialog):
 
         self._type_group = QButtonGroup(self)
         self._radio_normal = QRadioButton("Normal")
-        self._radio_phrasal = QRadioButton("Phrasal verb")
         self._radio_form = QRadioButton("Word form")
         self._radio_pattern = QRadioButton("Word pattern")
         self._radio_normal.setChecked(True)
         for index, radio in enumerate(
             (
                 self._radio_normal,
-                self._radio_phrasal,
                 self._radio_form,
                 self._radio_pattern,
             )
@@ -463,14 +461,14 @@ class LookupDialog(QDialog):
         type_row = QHBoxLayout()
         type_row.addWidget(QLabel("Card type:"))
         type_row.addWidget(self._radio_normal)
-        type_row.addWidget(self._radio_phrasal)
         type_row.addWidget(self._radio_form)
         type_row.addWidget(self._radio_pattern)
         type_row.addStretch(1)
 
         self._input_stack = QStackedWidget()
-        self._input_stack.addWidget(self._build_word_input("Enter a word…"))
-        self._input_stack.addWidget(self._build_word_input("Enter a phrasal verb…"))
+        self._input_stack.addWidget(
+            self._build_word_input("Enter a word or phrasal verb…")
+        )
         self._input_stack.addWidget(self._build_word_input("Enter a word (any form)…"))
         self._input_stack.addWidget(
             self._build_word_input("Enter a pattern (e.g. make a decision)…")
@@ -511,7 +509,6 @@ class LookupDialog(QDialog):
 
         for radio in (
             self._radio_normal,
-            self._radio_phrasal,
             self._radio_form,
             self._radio_pattern,
         ):
@@ -560,6 +557,7 @@ class LookupDialog(QDialog):
         self._root_definition.setVerticalScrollBarPolicy(
             Qt.ScrollBarPolicy.ScrollBarAsNeeded
         )
+        self._root_vietnamese = QLineEdit()
         self._root_popularity = QLineEdit()
         self._root_popularity.setPlaceholderText("1–5")
         self._root_difficulty = QLineEdit()
@@ -570,6 +568,7 @@ class LookupDialog(QDialog):
         form.addRow("Root type:", self._root_type)
         form.addRow("Root IPA:", self._root_ipa)
         form.addRow("Root definition:", self._root_definition)
+        form.addRow("Root Vietnamese:", self._root_vietnamese)
         form.addRow("Root popularity:", self._root_popularity)
         form.addRow("Root difficulty:", self._root_difficulty)
 
@@ -635,7 +634,6 @@ class LookupDialog(QDialog):
         checked = self._type_group.checkedId()
         return (
             CardType.NORMAL,
-            CardType.PHRASAL,
             CardType.WORD_FORM,
             CardType.WORD_PATTERN,
         )[checked]
@@ -652,7 +650,6 @@ class LookupDialog(QDialog):
             panel._line.setEnabled(enabled)  # noqa: SLF001
         for radio in (
             self._radio_normal,
-            self._radio_phrasal,
             self._radio_form,
             self._radio_pattern,
         ):
@@ -665,7 +662,7 @@ class LookupDialog(QDialog):
 
     def _can_create(self) -> bool:
         card_type = self._card_type()
-        if card_type in (CardType.NORMAL, CardType.PHRASAL):
+        if card_type is CardType.NORMAL:
             return self._payload is not None and self._def_list.count() > 0
         if card_type is CardType.WORD_FORM:
             return self._word_form_payload is not None
@@ -682,6 +679,7 @@ class LookupDialog(QDialog):
         self._root_type.clear()
         self._root_ipa.clear()
         self._root_definition.clear()
+        self._root_vietnamese.clear()
         self._root_popularity.clear()
         self._root_difficulty.clear()
         self._pattern_gap.clear()
@@ -694,8 +692,7 @@ class LookupDialog(QDialog):
 
     def _ready_hint(self) -> str:
         hints = {
-            CardType.NORMAL: "Normal: OpenAI senses — pick definitions to card.",
-            CardType.PHRASAL: "Phrasal verb: OpenAI senses — pick definitions to card.",
+            CardType.NORMAL: "Normal: OpenAI word or phrasal-verb senses — pick definitions to card.",
             CardType.WORD_FORM: "Word form: OpenAI finds the true root + related forms — one card per type.",
             CardType.WORD_PATTERN: "Word pattern: OpenAI gap fill — edit, then create one card.",
         }
@@ -718,12 +715,11 @@ class LookupDialog(QDialog):
         card_type = self._card_type()
         type_index = {
             CardType.NORMAL: 0,
-            CardType.PHRASAL: 1,
-            CardType.WORD_FORM: 2,
-            CardType.WORD_PATTERN: 3,
+            CardType.WORD_FORM: 1,
+            CardType.WORD_PATTERN: 2,
         }[card_type]
         self._input_stack.setCurrentIndex(type_index)
-        if card_type in (CardType.NORMAL, CardType.PHRASAL):
+        if card_type is CardType.NORMAL:
             self._result_stack.setCurrentIndex(0)
         elif card_type is CardType.WORD_FORM:
             self._result_stack.setCurrentIndex(1)
@@ -804,6 +800,7 @@ class LookupDialog(QDialog):
         self._root_type.setText(str(root.get("type") or ""))
         self._root_ipa.setText(str(root.get("ipa") or ""))
         self._root_definition.setPlainText(str(root.get("definition") or ""))
+        self._root_vietnamese.setText(str(root.get("vietnamese") or ""))
         self._root_popularity.setText(_score_field_text(root.get("popularity")))
         self._root_difficulty.setText(_score_field_text(root.get("difficulty")))
         self._family_list.blockSignals(True)
@@ -856,9 +853,6 @@ class LookupDialog(QDialog):
             if card_type is CardType.NORMAL:
                 payload = lookup_normal_word(text, **_openai_kwargs(config))
                 self._fill_definition_list(payload, text)
-            elif card_type is CardType.PHRASAL:
-                payload = lookup_phrasal_verb(text, **_openai_kwargs(config))
-                self._fill_definition_list(payload, text)
             elif card_type is CardType.WORD_FORM:
                 payload = lookup_word_form(text, **_openai_kwargs(config))
                 self._fill_word_form(payload)
@@ -898,6 +892,7 @@ class LookupDialog(QDialog):
                 "type": self._root_type.text().strip(),
                 "ipa": self._root_ipa.text().strip(),
                 "definition": self._root_definition.toPlainText().strip(),
+                "vietnamese": self._root_vietnamese.text().strip(),
                 "popularity": _read_score_field(self._root_popularity.text()),
                 "difficulty": _read_score_field(self._root_difficulty.text()),
             },
@@ -928,15 +923,7 @@ class LookupDialog(QDialog):
         # Validate before showing waiting UI.
         if card_type is CardType.NORMAL:
             if not self._payload:
-                showWarning("Look up a word first.", parent=self)
-                return
-            selected = self._selected_results()
-            if not selected:
-                showWarning("Select at least one definition.", parent=self)
-                return
-        elif card_type is CardType.PHRASAL:
-            if not self._payload:
-                showWarning("Look up a phrasal verb first.", parent=self)
+                showWarning("Look up a word or phrasal verb first.", parent=self)
                 return
             selected = self._selected_results()
             if not selected:
@@ -984,15 +971,6 @@ class LookupDialog(QDialog):
                     "",
                     audio_tags,
                     selected,
-                )
-            elif card_type is CardType.PHRASAL:
-                line, _ = self._active_input()
-                word = str(self._payload.get("word") or line.text().strip())
-                audio_tags = _definition_audio_tags(
-                    word, selected, config, self._show_tts_progress
-                )
-                added = add_phrasal_notes(
-                    mw.col, deck_id, word, audio_tags, selected
                 )
             elif card_type is CardType.WORD_FORM:
                 root_word = str(payload["rootWord"]["word"])

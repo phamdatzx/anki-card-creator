@@ -1,6 +1,7 @@
 # Anki Card Creator
 
-Anki add-on for creating vocabulary cards from four card types — **Normal**, **Phrasal verb**, **Word form**, and **Word pattern** — powered by OpenAI.
+Anki add-on for creating vocabulary cards from three card types — **Normal**,
+**Word form**, and **Word pattern** — powered by OpenAI.
 
 ## Install (development)
 
@@ -31,38 +32,41 @@ If Anki’s add-ons folder differs (e.g. Flatpak on Linux), use the path shown b
 
 | Type | Input | Source | What you get |
 | --- | --- | --- | --- |
-| **Normal** | A single word | OpenAI | One card per selected definition |
-| **Phrasal verb** | A phrasal verb | OpenAI | One card per selected sense |
+| **Normal** | A word or phrasal verb | OpenAI | One card per selected definition |
 | **Word form** | Any family member (e.g. `neatly`) | OpenAI | LLM picks true root (`neat`) + related forms; one card **per POS group** |
 | **Word pattern** | A collocation / pattern | OpenAI | One gap-fill card |
 
 #### Normal
 
-- OpenAI returns dictionary-style senses. Each sense includes **popularity** and **difficulty** (1–5) shown on the list before you create cards.
+- Enter a single word or a phrasal verb. OpenAI returns dictionary-style
+  senses; phrasal-verb senses are labeled accordingly.
+- Each sense includes **popularity** and **difficulty** (1–5) shown on the
+  list before you create cards.
+- Each card back includes an editable Vietnamese meaning for its selected sense.
 - Every sense includes editable standard American English **IPA**, shown on the card back.
 - Double-click a definition to edit it (including scores) before creating cards.
-
-#### Phrasal verb
-
-- OpenAI returns distinct senses for the phrasal verb; each sense has its own **popularity** and **difficulty** (1–5).
-- Every sense includes editable standard American English **IPA**, shown on the card back.
-- Same select / double-click to edit / create flow as Normal.
 
 #### Word form
 
 - Type any form in the family (root or derived). OpenAI chooses the **true root** (e.g. `neatly` → root `neat`) and returns related forms, each with **popularity** and **difficulty** (1–5).
 - Check related forms to include; uncheck ones you do not want.
 - Double-click a form to edit word, type, special definition, or scores.
+- The card back includes the root word's editable Vietnamese meaning.
 - Root and related forms include editable standard American English **IPA**; root IPA appears in the root section, and each form’s IPA appears beside that form.
 - Creates **separate cards per POS type** — e.g. `able (adj), 2N` → one card for 2 nouns; `able (adj), 1V` → one card for 1 verb.
 - On the card **back**, **related forms appear first**, then the root word and root definition.
 
 ### Pronunciation audio
 
-- Normal and Phrasal verb cards speak the revealed word on the answer side. Each selected definition receives its own clip, guided by its part of speech, definition, and first example so homographs can use the correct pronunciation.
+- Normal cards speak the revealed word or phrasal verb on the answer side. Each
+  selected definition receives its own clip, guided by its part of speech,
+  definition, and first example so homographs can use the correct pronunciation.
 - Word form cards play the resolved root word on the front. On the answer side, root and related-form audio use click-only controls; a card with three nouns has one control for each noun, in display order.
 - Word Form TTS uses the LLM-provided IPA, part of speech, and definition to select the intended standard American English pronunciation.
-- TTS is requested only after you click **Create cards**, so abandoned lookups incur no audio cost. Normal and Phrasal use one clip per unique selected sense; Word Form creates its root clip once and one MP3 for each distinct selected form, reused if it appears more than once.
+- TTS is requested only after you click **Create cards**, so abandoned lookups
+  incur no audio cost. Normal uses one clip per unique selected sense; Word Form
+  creates its root clip once and one MP3 for each distinct selected form, reused
+  if it appears more than once.
 
 #### Word pattern
 
@@ -86,9 +90,8 @@ Cards are added to the **currently selected deck**.
 
 | Card type | Note type | Front | Back |
 | --- | --- | --- | --- |
-| Normal | `VIP Translate` | part of speech + definition | word + audio, synonyms, examples |
-| Phrasal verb | `VIP Phrasal Verb` | part of speech + definition | phrasal verb + audio, synonyms, examples |
-| Word form | `VIP Word Form` | e.g. `able (adj), 2N` + root audio | related forms with sequential form audio, then root + root definition |
+| Normal | `VIP Translate` | part of speech + definition | word, Vietnamese meaning, audio, synonyms, examples |
+| Word form | `VIP Word Form` | e.g. `able (adj), 2N` + root audio | related forms with sequential form audio, then root + Vietnamese meaning + definition |
 | Word pattern | `VIP Word Pattern` | gap sentence with Vietnamese meaning | answer, Vietnamese, pattern, explanation, examples |
 
 Card templates use styled sections (labels, badges, example lists) with light and night mode support. Opening the add-on syncs note type templates to the latest version.
@@ -118,8 +121,8 @@ Copy the defaults below and fill in your own keys. Keys are **not** stored in th
 | `openai_api_key` | All card types | OpenAI API key (or compatible provider key). |
 | `openai_model` | All LLM card types | Model name. Default: `gpt-5-mini`. Any model that supports structured JSON output works. |
 | `openai_base_url` | All LLM card types | API base URL. Default: `https://api.openai.com/v1`. Change for OpenAI-compatible proxies or local servers. |
-| `openai_tts_model` | Normal, Phrasal verb, Word form | Text-to-speech model. Default: `gpt-4o-mini-tts`. |
-| `openai_tts_voice` | Normal, Phrasal verb, Word form | OpenAI TTS voice. Default: `alloy`. |
+| `openai_tts_model` | Normal, Word form | Text-to-speech model. Default: `gpt-4o-mini-tts`. |
+| `openai_tts_voice` | Normal, Word form | OpenAI TTS voice. Default: `alloy`. |
 
 ### Which keys do I need?
 

@@ -163,6 +163,7 @@ FIELDS = (
     "SyllableCount",
     "PartOfSpeech",
     "Definition",
+    "Vietnamese",
     "Synonyms",
     "Examples",
     "Audio",
@@ -180,6 +181,10 @@ CARD_BACK = (
     '<span class="section-label">Word</span>'
     '<div class="value">{{Word}} {{Audio}}</div>'
     "</div>\n"
+    '{{#Vietnamese}}<div class="section">'
+    '<span class="section-label">Vietnamese</span>'
+    "<div>{{Vietnamese}}</div>"
+    "</div>{{/Vietnamese}}\n"
     '{{#Pronunciation}}<div class="section section-meta">'
     '<span class="section-label">Pronunciation</span>'
     '<div class="meta-row">{{Pronunciation}}</div>'
@@ -188,45 +193,6 @@ CARD_BACK = (
     '<span class="section-label">Syllables</span>'
     '<div class="meta-row">{{SyllableCount}}</div>'
     "</div>{{/SyllableCount}}\n"
-    '{{#Synonyms}}<div class="section">'
-    '<span class="section-label">Synonyms</span>'
-    "<div>{{Synonyms}}</div>"
-    "</div>{{/Synonyms}}\n"
-    '{{#Examples}}<div class="section">'
-    '<span class="section-label">Examples</span>'
-    "<div>{{Examples}}</div>"
-    "</div>{{/Examples}}"
-)
-
-# --- Phrasal verb ---
-
-PHRASAL_NOTE_TYPE = "VIP Phrasal Verb"
-PHRASAL_FIELDS = (
-    "Word",
-    "Pronunciation",
-    "PartOfSpeech",
-    "Definition",
-    "Synonyms",
-    "Examples",
-    "Audio",
-)
-
-PHRASAL_FRONT = (
-    '{{#PartOfSpeech}}<div class="pos-line"><span class="badge">{{PartOfSpeech}}</span></div>{{/PartOfSpeech}}\n'
-    '<div class="definition-prompt">{{Definition}}</div>'
-)
-
-PHRASAL_BACK = (
-    "{{FrontSide}}\n"
-    '<hr class="divider" id="answer">\n'
-    '<div class="section section-word">'
-    '<span class="section-label">Phrasal verb</span>'
-    '<div class="value">{{Word}} {{Audio}}</div>'
-    "</div>\n"
-    '{{#Pronunciation}}<div class="section section-meta">'
-    '<span class="section-label">Pronunciation</span>'
-    '<div class="meta-row">{{Pronunciation}}</div>'
-    "</div>{{/Pronunciation}}\n"
     '{{#Synonyms}}<div class="section">'
     '<span class="section-label">Synonyms</span>'
     "<div>{{Synonyms}}</div>"
@@ -246,6 +212,7 @@ WORD_FORM_FIELDS = (
     "RootType",
     "Pronunciation",
     "RootDefinition",
+    "RootVietnamese",
     "FamilyHtml",
     "Audio",
     "FrontAudio",
@@ -267,6 +234,10 @@ WORD_FORM_BACK = (
     '<span class="section-label">Root</span>'
     '<div class="value">{{RootWord}} <span class="badge">{{RootType}}</span> {{Audio}}</div>'
     "</div>\n"
+    '{{#RootVietnamese}}<div class="section">'
+    '<span class="section-label">Vietnamese</span>'
+    "<div>{{RootVietnamese}}</div>"
+    "</div>{{/RootVietnamese}}\n"
     '{{#Pronunciation}}<div class="section section-meta">'
     '<span class="section-label">Pronunciation</span>'
     '<div class="meta-row">{{Pronunciation}}</div>'
@@ -326,7 +297,6 @@ _POS_ABBREV = {
     "interjection": "interj",
     "pronoun": "pron",
     "determiner": "det",
-    "phrasal verb": "phr.v",
 }
 
 
@@ -394,12 +364,6 @@ def ensure_note_type(col: Collection) -> NotetypeDict:
     return _ensure_note_type(col, NOTE_TYPE_NAME, FIELDS, CARD_FRONT, CARD_BACK)
 
 
-def ensure_phrasal_note_type(col: Collection) -> NotetypeDict:
-    return _ensure_note_type(
-        col, PHRASAL_NOTE_TYPE, PHRASAL_FIELDS, PHRASAL_FRONT, PHRASAL_BACK
-    )
-
-
 def ensure_word_form_note_type(col: Collection) -> NotetypeDict:
     return _ensure_note_type(
         col,
@@ -422,7 +386,6 @@ def ensure_word_pattern_note_type(col: Collection) -> NotetypeDict:
 
 def ensure_all_note_types(col: Collection) -> None:
     ensure_note_type(col)
-    ensure_phrasal_note_type(col)
     ensure_word_form_note_type(col)
     ensure_word_pattern_note_type(col)
 
@@ -443,6 +406,7 @@ def build_note(
     note["Audio"] = audio
     note["PartOfSpeech"] = str(result.get("partOfSpeech") or "")
     note["Definition"] = str(result.get("definition") or "")
+    note["Vietnamese"] = str(result.get("vietnamese") or "")
     note["Synonyms"] = _join(result.get("synonyms"))
     note["Examples"] = _examples_html(result.get("examples"))
     return note
@@ -465,31 +429,6 @@ def add_definition_notes(
         note = build_note(
             col, model, word, pronunciation, syllable_count, audio, result
         )
-        col.add_note(note, deck_id)
-        added += 1
-    return added
-
-
-def add_phrasal_notes(
-    col: Collection,
-    deck_id: int,
-    word: str,
-    audio_tags: list[str],
-    results: list[dict[str, Any]],
-) -> int:
-    if len(audio_tags) != len(results):
-        raise ValueError("Each definition needs one pronunciation clip.")
-    model = ensure_phrasal_note_type(col)
-    added = 0
-    for result, audio in zip(results, audio_tags):
-        note = col.new_note(model)
-        note["Word"] = word
-        note["Pronunciation"] = str(result.get("ipa") or "")
-        note["Audio"] = audio
-        note["PartOfSpeech"] = str(result.get("partOfSpeech") or "")
-        note["Definition"] = str(result.get("definition") or "")
-        note["Synonyms"] = _join(result.get("synonyms"))
-        note["Examples"] = _examples_html(result.get("examples"))
         col.add_note(note, deck_id)
         added += 1
     return added
@@ -613,6 +552,7 @@ def add_word_form_notes(
     root_type = str(root.get("type") or "")
     root_ipa = str(root.get("ipa") or "")
     root_definition = str(root.get("definition") or "")
+    root_vietnamese = str(root.get("vietnamese") or "")
 
     groups = _group_others_by_type(list(payload.get("other") or []))
     added = 0
@@ -627,6 +567,7 @@ def add_word_form_notes(
         note["RootType"] = root_type
         note["Pronunciation"] = root_ipa
         note["RootDefinition"] = root_definition
+        note["RootVietnamese"] = root_vietnamese
         note["FamilyHtml"] = word_form_family_html(items, audio_by_form)
         note["Audio"] = audio_control(root_audio)
         note["FrontAudio"] = root_audio
