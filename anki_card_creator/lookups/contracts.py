@@ -52,6 +52,10 @@ class WordPatternPayload(TypedDict):
     examples: list[str]
 
 
+class SentencePayload(TypedDict):
+    vietnamese: str
+
+
 def _mapping(value: Any, path: str) -> dict[str, Any]:
     if not isinstance(value, dict):
         raise ValueError(f"{path} must be an object")
@@ -166,3 +170,10 @@ def validate_word_pattern_payload(value: Any) -> WordPatternPayload:
         _string(payload[key], f"response.{key}")
     _string_list(payload["examples"], "response.examples")
     return cast(WordPatternPayload, payload)
+
+
+def validate_sentence_payload(value: Any) -> SentencePayload:
+    payload = _mapping(value, "response")
+    _require(payload, ("vietnamese",), "response")
+    _string(payload["vietnamese"], "response.vietnamese")
+    return cast(SentencePayload, payload)

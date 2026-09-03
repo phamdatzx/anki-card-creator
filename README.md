@@ -1,7 +1,7 @@
 # Anki Card Creator
 
-Anki add-on for creating vocabulary cards from three card types — **Normal**,
-**Word form**, and **Word pattern** — powered by OpenAI.
+Anki add-on for creating vocabulary cards from four card types — **Normal**,
+**Word form**, **Word pattern**, and **Sentence** — powered by OpenAI.
 
 ## Install (development)
 
@@ -35,6 +35,7 @@ If Anki’s add-ons folder differs (e.g. Flatpak on Linux), use the path shown b
 | **Normal** | A word or phrasal verb | OpenAI | One card per selected definition |
 | **Word form** | Any family member (e.g. `neatly`) | OpenAI | LLM picks true root (`neat`) + related forms; one card **per POS group** |
 | **Word pattern** | A collocation / pattern | OpenAI | One gap-fill card |
+| **Sentence** | An English sentence | OpenAI | One Vietnamese-to-English translation card |
 
 #### Normal
 
@@ -75,6 +76,13 @@ If Anki’s add-ons folder differs (e.g. Flatpak on Linux), use the path shown b
 - Puts the **Vietnamese meaning** in the gap instead (e.g. `She (đưa ra quyết định) to quit her job.`).
 - Edit gap, Vietnamese, answer, pattern, explanation, and examples before creating one card.
 
+#### Sentence
+
+- Enter an English sentence. OpenAI generates its natural Vietnamese meaning.
+- Edit either side if needed before creating one card.
+- The front shows the Vietnamese meaning; the back reveals the English sentence.
+- Sentence cards do not generate pronunciation audio.
+
 ### UI shortcuts & workflow
 
 | Action | How |
@@ -93,6 +101,7 @@ Cards are added to the **currently selected deck**.
 | Normal | `VIP Translate` | part of speech + definition | word, Vietnamese meaning, audio, synonyms, examples |
 | Word form | `VIP Word Form` | e.g. `able (adj), 2N` + root audio | related forms with sequential form audio, then root + Vietnamese meaning + definition |
 | Word pattern | `VIP Word Pattern` | gap sentence with Vietnamese meaning | answer, Vietnamese, pattern, explanation, examples |
+| Sentence | `VIP Sentence` | Vietnamese meaning | English sentence |
 
 Card templates use styled sections (labels, badges, example lists) with light and night mode support. Opening the add-on syncs note type templates to the latest version.
 

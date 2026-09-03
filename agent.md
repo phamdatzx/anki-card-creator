@@ -3,7 +3,7 @@
 ## Project
 
 This repository is an Anki add-on for creating vocabulary cards. It supports
-Normal, Word form, and Word pattern card types through an OpenAI-compatible
+Normal, Word form, Word pattern, and Sentence card types through an OpenAI-compatible
 structured-output API. Normal accepts either a word or a phrasal verb.
 
 The add-on runs inside Anki and relies on Anki-bundled `anki` and `aqt`
@@ -56,8 +56,9 @@ boundaries.
 
 ## Compatibility and security
 
-- Preserve these note type names: `VIP Translate`, `VIP Word Form`, and
-  `VIP Word Pattern`. Existing Anki collections depend on them.
+- Preserve these note type names: `VIP Translate`, `VIP Word Form`,
+  `VIP Word Pattern`, and `VIP Sentence`. Existing Anki collections depend
+  on them.
 - Keep note fields and templates backward-compatible unless migration behavior
   is intentionally implemented.
 - Never commit API keys, local `meta.json`, `.env` files, or generated

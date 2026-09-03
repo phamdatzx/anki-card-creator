@@ -8,12 +8,15 @@ import pytest
 
 from anki_card_creator.lookups.contracts import (
     NormalPayload,
+    SentencePayload,
     WordFormPayload,
     WordPatternPayload,
     validate_normal_payload,
+    validate_sentence_payload,
 )
 from anki_card_creator.lookups.schemas import (
     NORMAL_SCHEMA,
+    SENTENCE_SCHEMA,
     WORD_FORM_SCHEMA,
     WORD_PATTERN_SCHEMA,
 )
@@ -26,6 +29,7 @@ def test_payload_contracts_match_schema_top_level_keys():
         (NormalPayload, NORMAL_SCHEMA),
         (WordFormPayload, WORD_FORM_SCHEMA),
         (WordPatternPayload, WORD_PATTERN_SCHEMA),
+        (SentencePayload, SENTENCE_SCHEMA),
     )
     for contract, schema in pairs:
         assert set(get_type_hints(contract)) == set(schema["properties"])
@@ -81,13 +85,22 @@ def test_normal_payload_validation_rejects_invalid_nested_shape():
         )
 
 
+def test_sentence_payload_validation_requires_vietnamese_string():
+    payload = {"vietnamese": "Tôi đang học tiếng Anh."}
+    assert validate_sentence_payload(payload) is payload
+    with pytest.raises(ValueError, match="must be a string"):
+        validate_sentence_payload({"vietnamese": ["not text"]})
+
+
 def test_package_is_recursive_and_excludes_local_files(tmp_path):
     package = ROOT / "anki-card-creator.ankiaddon"
     subprocess.run([str(ROOT / "package.sh")], cwd=ROOT, check=True)
     with zipfile.ZipFile(package) as archive:
         names = set(archive.namelist())
     assert "lookups/normal.py" in names
+    assert "lookups/sentence.py" in names
     assert "notes/word_form.py" in names
+    assert "notes/sentence.py" in names
     assert "ui/dialog.py" in names
     assert "bootstrap.py" in names
     assert "audio.py" in names

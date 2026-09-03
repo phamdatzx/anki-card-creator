@@ -117,3 +117,12 @@ WORD_PATTERN_SCHEMA: dict[str, Any] = {
         "examples",
     ],
 }
+
+SENTENCE_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "additionalProperties": False,
+    "properties": {
+        "vietnamese": {"type": "string"},
+    },
+    "required": ["vietnamese"],
+}

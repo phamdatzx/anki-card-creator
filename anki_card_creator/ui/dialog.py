@@ -32,15 +32,18 @@ from ..config import AddonConfig, chat_kwargs, normalize_config
 from ..lookups.contracts import (
     DefinitionResult,
     NormalPayload,
+    SentencePayload,
     WordFormItem,
     WordFormPayload,
     WordPatternPayload,
 )
 from ..lookups.normal import lookup_normal_word
+from ..lookups.sentence import lookup_sentence
 from ..lookups.word_form import lookup_word_form
 from ..lookups.word_pattern import lookup_word_pattern
 from ..notes.normal import add_definition_notes
 from ..notes.registry import ensure_all_note_types
+from ..notes.sentence import add_sentence_note
 from ..notes.word_form import add_word_form_notes, word_form_card_summaries
 from ..notes.word_pattern import add_word_pattern_note
 from ..openai_client import OpenAIError
@@ -57,6 +60,7 @@ class CardType(Enum):
     NORMAL = 0
     WORD_FORM = 1
     WORD_PATTERN = 2
+    SENTENCE = 3
 
 
 def addon_config() -> AddonConfig:
@@ -79,12 +83,14 @@ class LookupDialog(QDialog):
         self._normal_payload: NormalPayload | None = None
         self._form_payload: WordFormPayload | None = None
         self._pattern_payload: WordPatternPayload | None = None
+        self._sentence_payload: SentencePayload | None = None
 
         self._type_group = QButtonGroup(self)
         radios = [
             QRadioButton("Normal"),
             QRadioButton("Word form"),
             QRadioButton("Word pattern"),
+            QRadioButton("Sentence"),
         ]
         self._radios = radios
         radios[0].setChecked(True)
@@ -101,6 +107,7 @@ class LookupDialog(QDialog):
             "Enter a word or phrasal verb…",
             "Enter a word (any form)…",
             "Enter a pattern (e.g. make a decision)…",
+            "Enter an English sentence…",
         ):
             self._inputs.addWidget(InputPanel(placeholder, self._lookup))
         self._status = QLabel("")
@@ -111,6 +118,7 @@ class LookupDialog(QDialog):
         self._results.addWidget(self._definitions)
         self._results.addWidget(self._form_panel())
         self._results.addWidget(self._pattern_panel())
+        self._results.addWidget(self._sentence_panel())
         self._create = QPushButton("Create cards (Ctrl+Enter)")
         self._create.setEnabled(False)
         shortcut = QShortcut(QKeySequence("Ctrl+Return"), self)
@@ -219,6 +227,20 @@ class LookupDialog(QDialog):
         layout.addStretch(1)
         return panel
 
+    def _sentence_panel(self) -> QWidget:
+        panel = QWidget()
+        layout = QFormLayout(panel)
+        layout.setContentsMargins(0, 0, 0, 0)
+        self._sentence_vietnamese = QTextEdit()
+        self._sentence_vietnamese.setMinimumHeight(90)
+        self._sentence_vietnamese.setAcceptRichText(False)
+        self._sentence = QTextEdit()
+        self._sentence.setMinimumHeight(90)
+        self._sentence.setAcceptRichText(False)
+        layout.addRow("Vietnamese (front):", self._sentence_vietnamese)
+        layout.addRow("English (back):", self._sentence)
+        return panel
+
     def resizeEvent(self, event) -> None:  # noqa: N802
         super().resizeEvent(event)
         refit_list(self._definitions)
@@ -243,11 +265,15 @@ class LookupDialog(QDialog):
             "Normal: look up senses and select definitions.",
             "Word form: find a root and related forms.",
             "Word pattern: create a contextual gap fill.",
+            "Sentence: translate an English sentence into Vietnamese.",
         )
         self._status.setText(hints[index])
 
     def _clear(self) -> None:
-        self._normal_payload = self._form_payload = self._pattern_payload = None
+        self._normal_payload = None
+        self._form_payload = None
+        self._pattern_payload = None
+        self._sentence_payload = None
         self._definitions.clear()
         self._family.clear()
         self._summary.clear()
@@ -268,6 +294,8 @@ class LookupDialog(QDialog):
             self._gap,
             self._explanation,
             self._examples,
+            self._sentence_vietnamese,
+            self._sentence,
         ):
             widget.clear()
         self._create.setEnabled(False)
@@ -288,6 +316,8 @@ class LookupDialog(QDialog):
             else self._form_payload is not None
             if self._card_type() is CardType.WORD_FORM
             else self._pattern_payload is not None
+            if self._card_type() is CardType.WORD_PATTERN
+            else self._sentence_payload is not None
         )
 
     def _lookup(self) -> None:
@@ -303,8 +333,10 @@ class LookupDialog(QDialog):
                 self._fill_normal(lookup_normal_word(text, **chat_kwargs(config)))
             elif self._card_type() is CardType.WORD_FORM:
                 self._fill_form(lookup_word_form(text, **chat_kwargs(config)))
-            else:
+            elif self._card_type() is CardType.WORD_PATTERN:
                 self._fill_pattern(lookup_word_pattern(text, **chat_kwargs(config)))
+            else:
+                self._fill_sentence(lookup_sentence(text, **chat_kwargs(config)))
         except OpenAIError as exc:
             self._status.setText(str(exc))
             showWarning(str(exc), parent=self)
@@ -361,6 +393,12 @@ class LookupDialog(QDialog):
         self._explanation.setPlainText(str(payload.get("explanation") or ""))
         self._examples.setPlainText(as_text(payload.get("examples"), multiline=True))
         self._status.setText("Edit the gap card if needed, then create.")
+
+    def _fill_sentence(self, payload: SentencePayload) -> None:
+        self._sentence_payload = payload
+        self._sentence_vietnamese.setPlainText(str(payload.get("vietnamese") or ""))
+        self._sentence.setPlainText(self._active_input().line.text().strip())
+        self._status.setText("Edit the translation if needed, then create.")
 
     def _edit_definition(self, item: QListWidgetItem) -> None:
         data = item.data(Qt.ItemDataRole.UserRole)
@@ -427,6 +465,12 @@ class LookupDialog(QDialog):
             "examples": split_list(self._examples.toPlainText(), multiline=True),
         }
 
+    def _sentence_data(self) -> tuple[str, str]:
+        return (
+            self._sentence_vietnamese.toPlainText().strip(),
+            self._sentence.toPlainText().strip(),
+        )
+
     def _refresh_summary(self) -> None:
         cards = word_form_card_summaries(self._form_data())
         self._summary.setText(
@@ -453,10 +497,18 @@ class LookupDialog(QDialog):
             if not payload["rootWord"]["word"] or not payload["other"]:
                 showWarning("Root word and one related form are required.", parent=self)
                 return
-        else:
+        elif self._card_type() is CardType.WORD_PATTERN:
             payload = self._pattern_data()
             if not payload["gap"] or not payload["answer"]:
                 showWarning("Gap and answer are required.", parent=self)
+                return
+        else:
+            vietnamese, sentence = self._sentence_data()
+            if not vietnamese or not sentence:
+                showWarning(
+                    "Vietnamese meaning and English sentence are required.",
+                    parent=self,
+                )
                 return
         self._busy(True)
         try:
@@ -478,8 +530,10 @@ class LookupDialog(QDialog):
                 added = add_word_form_notes(
                     mw.col, deck_id, payload, root_audio, form_audio
                 )
-            else:
+            elif self._card_type() is CardType.WORD_PATTERN:
                 added = add_word_pattern_note(mw.col, deck_id, payload)
+            else:
+                added = add_sentence_note(mw.col, deck_id, vietnamese, sentence)
         except Exception as exc:
             message = f"Could not create cards: {exc}"
             self._status.setText(message)

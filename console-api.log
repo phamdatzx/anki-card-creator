@@ -1,0 +1,372 @@
+[0KRunning with gitlab-runner 15.6.1 (133d7e76)[0;m
+[0K  on gitlabce-runner-gitlab-runner-6c4fdc5fd4-sp79d glrtr-Pc[0;m
+section_start:1788332664:prepare_executor
+[0K[0K[36;1mPreparing the "kubernetes" executor[0;m[0;m
+[0KUsing Kubernetes namespace: gitlabce-runner[0;m
+[0KUsing Kubernetes executor with image registry-gitlab.nexon.com/analysis-support/gameweb/gameweb/base_images:1.0 ...[0;m
+[0KUsing attach strategy to execute scripts...[0;m
+section_end:1788332664:prepare_executor
+[0Ksection_start:1788332664:prepare_script
+[0K[0K[36;1mPreparing environment[0;m[0;m
+Waiting for pod gitlabce-runner/runner-glrtr-pc-project-21572-concurrent-4lxhn9 to be running, status is Pending
+Waiting for pod gitlabce-runner/runner-glrtr-pc-project-21572-concurrent-4lxhn9 to be running, status is Pending
+	ContainersNotInitialized: "containers with incomplete status: [init-permissions]"
+	ContainersNotReady: "containers with unready status: [build helper svc-0]"
+	ContainersNotReady: "containers with unready status: [build helper svc-0]"
+Running on runner-glrtr-pc-project-21572-concurrent-4lxhn9 via gitlabce-runner-gitlab-runner-6c4fdc5fd4-sp79d...
+
+section_end:1788332674:prepare_script
+[0Ksection_start:1788332674:get_sources
+[0K[0K[36;1mGetting source from Git repository[0;m[0;m
+[32;1mFetching changes with git depth set to 20...[0;m
+Initialized empty Git repository in /builds/analysis-support/gameweb/gameweb/.git/
+[32;1mCreated fresh repository.[0;m
+[32;1mChecking out 64f43fe5 as develop...[0;m
+
+[32;1mSkipping Git submodules setup[0;m
+
+section_end:1788332678:get_sources
+[0Ksection_start:1788332678:restore_cache
+[0K[0K[36;1mRestoring cache[0;m[0;m
+[32;1mChecking cache for nwb-console-api_64f43fe5-8-protected...[0;m
+Downloading cache.zip from https://live-nexon-gilab-common-artifacts.s3.dualstack.ap-northeast-2.amazonaws.com/cache/gitlabce/project/21572/nwb-console-api_64f43fe5-8-protected[0;m 
+[32;1mSuccessfully extracted cache[0;m
+
+section_end:1788332681:restore_cache
+[0Ksection_start:1788332681:step_script
+[0K[0K[36;1mExecuting "step_script" stage of the job script[0;m[0;m
+[32;1m$ timeout 120 bash -c 'until nc -z -w 4 localhost 2375; do sleep 5; echo "Waiting docker on"; done' && echo "Docker is on" || echo "Timeout (120s) reached for waiting docker on"[0;m
+Waiting docker on
+Waiting docker on
+Docker is on
+[32;1m$ docker info[0;m
+Client: Docker Engine - Community
+ Version:    27.1.1
+ Context:    default
+ Debug Mode: false
+ Plugins:
+  buildx: Docker Buildx (Docker Inc.)
+    Version:  v0.16.1
+    Path:     /usr/libexec/docker/cli-plugins/docker-buildx
+  compose: Docker Compose (Docker Inc.)
+    Version:  v2.29.1
+    Path:     /usr/libexec/docker/cli-plugins/docker-compose
+
+Server:
+ Containers: 0
+  Running: 0
+  Paused: 0
+  Stopped: 0
+ Images: 0
+ Server Version: 24.0.4
+ Storage Driver: overlay2
+  Backing Filesystem: xfs
+  Supports d_type: true
+  Using metacopy: false
+  Native Overlay Diff: true
+  userxattr: false
+ Logging Driver: json-file
+ Cgroup Driver: cgroupfs
+ Cgroup Version: 2
+ Plugins:
+  Volume: local
+  Network: bridge host ipvlan macvlan null overlay
+  Log: awslogs fluentd gcplogs gelf journald json-file local logentries splunk syslog
+ Swarm: inactive
+ Runtimes: io.containerd.runc.v2 runc
+ Default Runtime: runc
+ Init Binary: docker-init
+ containerd version: 1677a17964311325ed1c31e2c0a3589ce6d5c30d
+ runc version: v1.1.7-0-g860f061
+ init version: de40ad0
+ Security Options:
+  seccomp
+   Profile: builtin
+  cgroupns
+ Kernel Version: 6.12.94-123.192.amzn2023.x86_64
+ Operating System: Alpine Linux v3.18 (containerized)
+ OSType: linux
+ Architecture: x86_64
+ CPUs: 16
+ Total Memory: 30.65GiB
+ Name: runner-glrtr-pc-project-21572-concurrent-4lxhn9
+ ID: 65350bfa-85b4-44dd-a1c3-f5954e2d36c9
+ Docker Root Dir: /var/lib/docker
+ Debug Mode: false
+ Experimental: false
+ Insecure Registries:
+  127.0.0.0/8
+ Live Restore Enabled: false
+ Product License: Community Engine
+
+WARNING: API is accessible on http://0.0.0.0:2375 without encryption.
+         Access to the remote API is equivalent to root access on the host. Refer
+         to the 'Docker daemon attack surface' section in the documentation for
+         more information: https://docs.docker.com/go/attack-surface/
+[32;1m$ mkdir -p $CI_PROJECT_DIR/.ci_cache[0;m
+[32;1m$ echo "$CI_JOB_TOKEN" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"[0;m
+WARNING! Your password will be stored unencrypted in /root/.docker/config.json.
+Configure a credential helper to remove this warning. See
+https://docs.docker.com/engine/reference/commandline/login/#credential-stores
+
+Login Succeeded
+[32;1m$ if [ -n "$GITOPS_REPO_URL" ] && [ -n "$GITOPS_USERNAME" ] && [ -n "$GITOPS_ACCESS_TOKEN" ]; then # collapsed multi-line command[0;m
+Using GitOps User's credentials for GitOps authentication
+[32;1m$ if [ -n "$DOCKER_USERNAME" ] && [ -n "$DOCKER_PASSWORD" ] && [ -n "$DOCKER_REGISTRY" ]; then # collapsed multi-line command[0;m
+Skip docker login because of missing DOCKER_USERNAME, DOCKER_PASSWORD, DOCKER_REGISTRY
+[32;1m$ if [ "$AWS_ENV" == $DEV_ENVIRONMENT ]; then # collapsed multi-line command[0;m
+Skip changing AWS credentials because of missing AWS_ENV
+/[MASKED]
+[32;1m$ if [ "$DEPLOY_ENV" == $DEV_ENVIRONMENT ]; then # collapsed multi-line command[0;m
+[32;1m$ if [ -n "$AWS_ECR_REPO_BASE_URI" ] && [ "$AWS_ECR_REPO_BASE_URI" != "\"\"" ]; then # collapsed multi-line command[0;m
+Skip AWS ECR login because of missing AWS_ECR_REPO_BASE_URI
+[32;1m$ VERSION=""[0;m
+[32;1m$ # Execute User defined version parser # collapsed multi-line command[0;m
+Parsing script path: [.gitlab/ci/templates/base/version_parsing_script.sh]
+Version (Parsed by user script file): 1.0.0
+[32;1m$ # Default version parser (package.json, version.txt) # collapsed multi-line command[0;m
+[32;1m$ # Append commit short sha to version if it's not main branch # collapsed multi-line command[0;m
+(Commit short sha appended) Version: 1.0.0-64f43fe5
+[32;1m$ docker load -i $CI_PROJECT_DIR/.ci_cache/$DEPLOYMENT_APP_NAME/docker_cache.tar # collapsed multi-line command[0;m
+Loaded image: registry-gitlab.nexon.com/nwb-console-api:latest
+2026-09-02T07:05:32Z	INFO	Adding schema version to the DB repository for backward compatibility	repository="public.ecr.aws/aquasecurity/trivy-db:2"
+2026-09-02T07:05:32Z	INFO	Need to update DB
+2026-09-02T07:05:32Z	INFO	Downloading DB...	repository="public.ecr.aws/aquasecurity/trivy-db:2"
+59.80 MiB / 110.34 MiB [-------------------------------->___________________________] 54.20% ? p/s ?
+110.34 MiB / 110.34 MiB [--------------------------------------------------------->] 100.00% ? p/s ?110.34 MiB / 110.34 MiB [--------------------------------------------------------->] 100.00% ? p/s ?
+110.34 MiB / 110.34 MiB [-------------------------------------------->] 100.00% 84.20 MiB p/s ETA 0s110.34 MiB / 110.34 MiB [-------------------------------------------->] 100.00% 84.20 MiB p/s ETA 0s110.34 MiB / 110.34 MiB [-------------------------------------------->] 100.00% 84.20 MiB p/s ETA 0s
+110.34 MiB / 110.34 MiB [-------------------------------------------->] 100.00% 78.77 MiB p/s ETA 0s110.34 MiB / 110.34 MiB [-------------------------------------------->] 100.00% 78.77 MiB p/s ETA 0s
+110.34 MiB / 110.34 MiB [-------------------------------------------->] 100.00% 78.77 MiB p/s ETA 0s110.34 MiB / 110.34 MiB [-------------------------------------------->] 100.00% 73.68 MiB p/s ETA 0s110.34 MiB / 110.34 MiB [-------------------------------------------->] 100.00% 73.68 MiB p/s ETA 0s
+110.34 MiB / 110.34 MiB [-------------------------------------------->] 100.00% 73.68 MiB p/s ETA 0s110.34 MiB / 110.34 MiB [-------------------------------------------->] 100.00% 68.93 MiB p/s ETA 0s
+110.34 MiB / 110.34 MiB [-------------------------------------------->] 100.00% 68.93 MiB p/s ETA 0s110.34 MiB / 110.34 MiB [-------------------------------------------->] 100.00% 68.93 MiB p/s ETA 0s110.34 MiB / 110.34 MiB [-------------------------------------------->] 100.00% 64.48 MiB p/s ETA 0s
+110.34 MiB / 110.34 MiB [-----------------------------------------------] 100.00% 35.80 MiB p/s 3.3s
+2026-09-02T07:05:36Z	INFO	Vulnerability scanning is enabled
+2026-09-02T07:05:36Z	INFO	Secret scanning is enabled
+2026-09-02T07:05:36Z	INFO	If your scanning is slow, please try '--scanners vuln' to disable secret scanning
+2026-09-02T07:05:36Z	INFO	Please see also https://aquasecurity.github.io/trivy/v0.52/docs/scanner/secret/#recommendation for faster secret detection
+2026-09-02T07:06:44Z	INFO	Detected OS	family="alpine" version="3.24.1"
+2026-09-02T07:06:44Z	WARN	This OS version is not on the EOL list	family="alpine" version="3.24"
+2026-09-02T07:06:44Z	INFO	[alpine] Detecting vulnerabilities...	os_version="3.24" repository="3.24" pkg_num=19
+2026-09-02T07:06:44Z	INFO	Number of language-specific files	num=1
+2026-09-02T07:06:44Z	INFO	[node-pkg] Detecting vulnerabilities...
+
+registry-gitlab.nexon.com/nwb-console-api:latest (alpine 3.24.1)
+================================================================
+Total: 2 (HIGH: 2)
+
+┌────────────┬────────────────┬──────────┬────────┬───────────────────┬───────────────┬──────────────────────────────────────────────────────────┐
+│  Library   │ Vulnerability  │ Severity │ Status │ Installed Version │ Fixed Version │                          Title                           │
+├────────────┼────────────────┼──────────┼────────┼───────────────────┼───────────────┼──────────────────────────────────────────────────────────┤
+│ libcrypto3 │ CVE-2026-14456 │ HIGH     │ fixed  │ 3.5.7-r0          │ 3.5.8-r0      │ openssl: OpenSSL: Denial of Service via unbounded memory │
+│            │                │          │        │                   │               │ growth in QUIC server...                                 │
+│            │                │          │        │                   │               │ https://avd.aquasec.com/nvd/cve-2026-14456               │
+├────────────┤                │          │        │                   │               │                                                          │
+│ libssl3    │                │          │        │                   │               │                                                          │
+│            │                │          │        │                   │               │                                                          │
+│            │                │          │        │                   │               │                                                          │
+└────────────┴────────────────┴──────────┴────────┴───────────────────┴───────────────┴──────────────────────────────────────────────────────────┘
+2026-09-02T07:06:44Z	INFO	Table result includes only package filenames. Use '--format json' option to get the full path to the package file.
+
+Node.js (node-pkg)
+==================
+Total: 38 (HIGH: 38)
+
+┌────────────────────────────────┬─────────────────────┬──────────┬────────┬───────────────────┬─────────────────────────────┬──────────────────────────────────────────────────────────────┐
+│            Library             │    Vulnerability    │ Severity │ Status │ Installed Version │        Fixed Version        │                            Title                             │
+├────────────────────────────────┼─────────────────────┼──────────┼────────┼───────────────────┼─────────────────────────────┼──────────────────────────────────────────────────────────────┤
+│ @fastify/static (package.json) │ CVE-2026-15074      │ HIGH     │ fixed  │ 7.0.4             │ 10.1.1                      │ @fastify/static vulnerable to route guard bypass via path    │
+│                                │                     │          │        │                   │                             │ traversal                                                    │
+│                                │                     │          │        │                   │                             │ https://avd.aquasec.com/nvd/cve-2026-15074                   │
+├────────────────────────────────┼─────────────────────┤          │        ├───────────────────┼─────────────────────────────┼──────────────────────────────────────────────────────────────┤
+│ brace-expansion (package.json) │ CVE-2026-13149      │          │        │ 2.1.1             │ 5.0.7, 1.1.16, 2.1.2        │ brace-expansion: Brace-expansion: Denial of Service due to   │
+│                                │                     │          │        │                   │                             │ exponential-time complexity                                  │
+│                                │                     │          │        │                   │                             │ https://avd.aquasec.com/nvd/cve-2026-13149                   │
+│                                ├─────────────────────┤          │        │                   ├─────────────────────────────┼──────────────────────────────────────────────────────────────┤
+│                                │ CVE-2026-14257      │          │        │                   │ 5.0.8, 3.0.3, 2.1.3, 1.1.17 │ brace-expansion: Brace-expansion: Denial of Service via      │
+│                                │                     │          │        │                   │                             │ memory exhaustion in expand() function                       │
+│                                │                     │          │        │                   │                             │ https://avd.aquasec.com/nvd/cve-2026-14257                   │
+│                                ├─────────────────────┤          │        │                   ├─────────────────────────────┼──────────────────────────────────────────────────────────────┤
+│                                │ CVE-2026-69152      │          │        │                   │ 1.1.18, 2.1.4, 3.0.6, 5.0.9 │ brace-expansion: DoS via unbounded intermediate arrays,      │
+│                                │                     │          │        │                   │                             │ bypassing the CVE-2026-14257 mitigation                      │
+│                                │                     │          │        │                   │                             │ https://avd.aquasec.com/nvd/cve-2026-69152                   │
+│                                ├─────────────────────┤          │        ├───────────────────┼─────────────────────────────┼──────────────────────────────────────────────────────────────┤
+│                                │ CVE-2026-13149      │          │        │ 5.0.6             │ 5.0.7, 1.1.16, 2.1.2        │ brace-expansion: Brace-expansion: Denial of Service due to   │
+│                                │                     │          │        │                   │                             │ exponential-time complexity                                  │
+│                                │                     │          │        │                   │                             │ https://avd.aquasec.com/nvd/cve-2026-13149                   │
+│                                ├─────────────────────┤          │        │                   ├─────────────────────────────┼──────────────────────────────────────────────────────────────┤
+│                                │ CVE-2026-14257      │          │        │                   │ 5.0.8, 3.0.3, 2.1.3, 1.1.17 │ brace-expansion: Brace-expansion: Denial of Service via      │
+│                                │                     │          │        │                   │                             │ memory exhaustion in expand() function                       │
+│                                │                     │          │        │                   │                             │ https://avd.aquasec.com/nvd/cve-2026-14257                   │
+│                                ├─────────────────────┤          │        │                   ├─────────────────────────────┼──────────────────────────────────────────────────────────────┤
+│                                │ CVE-2026-69152      │          │        │                   │ 1.1.18, 2.1.4, 3.0.6, 5.0.9 │ brace-expansion: DoS via unbounded intermediate arrays,      │
+│                                │                     │          │        │                   │                             │ bypassing the CVE-2026-14257 mitigation                      │
+│                                │                     │          │        │                   │                             │ https://avd.aquasec.com/nvd/cve-2026-69152                   │
+├────────────────────────────────┼─────────────────────┤          │        ├───────────────────┼─────────────────────────────┼──────────────────────────────────────────────────────────────┤
+│ browserslist (package.json)    │ CVE-2026-73088      │          │        │ 4.28.2            │ 4.28.7                      │ browserslist: Browserslist: Prototype pollution leading to   │
+│                                │                     │          │        │                   │                             │ denial of service                                            │
+│                                │                     │          │        │                   │                             │ https://avd.aquasec.com/nvd/cve-2026-73088                   │
+│                                ├─────────────────────┤          │        │                   │                             ├──────────────────────────────────────────────────────────────┤
+│                                │ CVE-2026-73089      │          │        │                   │                             │ browserslist: Browserslist: Denial of Service via unbounded  │
+│                                │                     │          │        │                   │                             │ memory growth from distinct query...                         │
+│                                │                     │          │        │                   │                             │ https://avd.aquasec.com/nvd/cve-2026-73089                   │
+├────────────────────────────────┼─────────────────────┤          │        ├───────────────────┼─────────────────────────────┼──────────────────────────────────────────────────────────────┤
+│ drizzle-orm (package.json)     │ CVE-2026-39356      │          │        │ 0.41.0            │ 0.45.2, 1.0.0-beta.20       │ Drizzle ORM has SQL injection via improperly escaped SQL     │
+│                                │                     │          │        │                   │                             │ identifiers                                                  │
+│                                │                     │          │        │                   │                             │ https://avd.aquasec.com/nvd/cve-2026-39356                   │
+├────────────────────────────────┼─────────────────────┤          │        ├───────────────────┼─────────────────────────────┼──────────────────────────────────────────────────────────────┤
+│ effect (package.json)          │ CVE-2026-32887      │          │        │ 3.19.6            │ 3.20.0                      │ Effect `AsyncLocalStorage` context lost/contaminated inside  │
+│                                │                     │          │        │                   │                             │ Effect fibers under concurrent load with RPC...              │
+│                                │                     │          │        │                   │                             │ https://avd.aquasec.com/nvd/cve-2026-32887                   │
+├────────────────────────────────┼─────────────────────┤          │        ├───────────────────┼─────────────────────────────┼──────────────────────────────────────────────────────────────┤
+│ fast-uri (package.json)        │ CVE-2026-18446      │          │        │ 2.4.3             │ 2.4.4, 3.1.5, 4.1.2         │ fast-uri: fast-uri: Host confusion vulnerability via         │
+│                                │                     │          │        │                   │                             │ backslash in URI authority                                   │
+│                                │                     │          │        │                   │                             │ https://avd.aquasec.com/nvd/cve-2026-18446                   │
+│                                ├─────────────────────┤          │        ├───────────────────┼─────────────────────────────┼──────────────────────────────────────────────────────────────┤
+│                                │ CVE-2026-13676      │          │        │ 3.1.2             │ 4.0.1, 3.1.3, 2.4.2         │ fast-uri: fast-uri: Security policy bypass due to improper   │
+│                                │                     │          │        │                   │                             │ Unicode hostname canonicalization                            │
+│                                │                     │          │        │                   │                             │ https://avd.aquasec.com/nvd/cve-2026-13676                   │
+│                                ├─────────────────────┤          │        │                   ├─────────────────────────────┼──────────────────────────────────────────────────────────────┤
+│                                │ CVE-2026-16221      │          │        │                   │ 2.4.3, 3.1.4, 4.1.1         │ fast-uri: Fast-uri: Security policy bypass due to URL        │
+│                                │                     │          │        │                   │                             │ parsing inconsistency                                        │
+│                                │                     │          │        │                   │                             │ https://avd.aquasec.com/nvd/cve-2026-16221                   │
+│                                ├─────────────────────┤          │        │                   ├─────────────────────────────┼──────────────────────────────────────────────────────────────┤
+│                                │ CVE-2026-18446      │          │        │                   │ 2.4.4, 3.1.5, 4.1.2         │ fast-uri: fast-uri: Host confusion vulnerability via         │
+│                                │                     │          │        │                   │                             │ backslash in URI authority                                   │
+│                                │                     │          │        │                   │                             │ https://avd.aquasec.com/nvd/cve-2026-18446                   │
+├────────────────────────────────┼─────────────────────┤          │        ├───────────────────┼─────────────────────────────┼──────────────────────────────────────────────────────────────┤
+│ fast-xml-parser (package.json) │ CVE-2026-25128      │          │        │ 5.2.5             │ 5.3.4                       │ fast-xml-parser: fast-xml-parser has RangeError DoS Numeric  │
+│                                │                     │          │        │                   │                             │ Entities Bug                                                 │
+│                                │                     │          │        │                   │                             │ https://avd.aquasec.com/nvd/cve-2026-25128                   │
+│                                ├─────────────────────┤          │        │                   ├─────────────────────────────┼──────────────────────────────────────────────────────────────┤
+│                                │ CVE-2026-26278      │          │        │                   │ 4.5.4, 5.3.6                │ fast-xml-parser: fast-xml-parser: Denial of Service via      │
+│                                │                     │          │        │                   │                             │ unlimited XML entity expansion                               │
+│                                │                     │          │        │                   │                             │ https://avd.aquasec.com/nvd/cve-2026-26278                   │
+│                                ├─────────────────────┤          │        │                   ├─────────────────────────────┼──────────────────────────────────────────────────────────────┤
+│                                │ CVE-2026-33036      │          │        │                   │ 5.5.6, 4.5.5                │ fast-xml-parser: fast-xml-parser: Denial of Service via XML  │
+│                                │                     │          │        │                   │                             │ entity expansion bypass                                      │
+│                                │                     │          │        │                   │                             │ https://avd.aquasec.com/nvd/cve-2026-33036                   │
+├────────────────────────────────┼─────────────────────┤          │        ├───────────────────┼─────────────────────────────┼──────────────────────────────────────────────────────────────┤
+│ fastify (package.json)         │ CVE-2026-25223      │          │        │ 4.29.1            │ 5.7.2                       │ Fastify: Fastify: Validation bypass due to malformed         │
+│                                │                     │          │        │                   │                             │ Content-Type header leading to integrity...                  │
+│                                │                     │          │        │                   │                             │ https://avd.aquasec.com/nvd/cve-2026-25223                   │
+├────────────────────────────────┼─────────────────────┤          │        ├───────────────────┼─────────────────────────────┼──────────────────────────────────────────────────────────────┤
+│ find-my-way (package.json)     │ CVE-2026-47219      │          │        │ 8.2.2             │ 9.7.0                       │ find-my-way: find-my-way: Denial of Service vulnerability in │
+│                                │                     │          │        │                   │                             │ HTTP/2 server                                                │
+│                                │                     │          │        │                   │                             │ https://avd.aquasec.com/nvd/cve-2026-47219                   │
+├────────────────────────────────┼─────────────────────┤          │        ├───────────────────┼─────────────────────────────┼──────────────────────────────────────────────────────────────┤
+│ ip-address (package.json)      │ CVE-2026-69192      │          │        │ 10.2.0            │ 10.3.1                      │ ip-address: ip-address: Inconsistent IP address parsing      │
+│                                │                     │          │        │                   │                             │ leads to Server-Side Request Forgery (SSRF)...               │
+│                                │                     │          │        │                   │                             │ https://avd.aquasec.com/nvd/cve-2026-69192                   │
+├────────────────────────────────┼─────────────────────┤          │        ├───────────────────┼─────────────────────────────┼──────────────────────────────────────────────────────────────┤
+│ js-yaml (package.json)         │ CVE-2026-59869      │          │        │ 4.1.1             │ 3.15.0, 4.3.0               │ js-yaml: js-yaml: Denial of Service via crafted YAML         │
+│                                │                     │          │        │                   │                             │ documents                                                    │
+│                                │                     │          │        │                   │                             │ https://avd.aquasec.com/nvd/cve-2026-59869                   │
+│                                ├─────────────────────┤          │        │                   ├─────────────────────────────┼──────────────────────────────────────────────────────────────┤
+│                                │ GHSA-5p4m-2wfm-xmqj │          │        │                   │ 4.3.1, 3.15.1               │ JS-YAML: Quadratic CPU consumption in !!omap resolution (3.x │
+│                                │                     │          │        │                   │                             │ and 4.x) — CVE-2026-59870...                                 │
+│                                │                     │          │        │                   │                             │ https://github.com/advisories/GHSA-5p4m-2wfm-xmqj            │
+│                                ├─────────────────────┤          │        ├───────────────────┼─────────────────────────────┼──────────────────────────────────────────────────────────────┤
+│                                │ CVE-2026-59869      │          │        │ 4.2.0             │ 3.15.0, 4.3.0               │ js-yaml: js-yaml: Denial of Service via crafted YAML         │
+│                                │                     │          │        │                   │                             │ documents                                                    │
+│                                │                     │          │        │                   │                             │ https://avd.aquasec.com/nvd/cve-2026-59869                   │
+│                                ├─────────────────────┤          │        │                   ├─────────────────────────────┼──────────────────────────────────────────────────────────────┤
+│                                │ GHSA-5p4m-2wfm-xmqj │          │        │                   │ 4.3.1, 3.15.1               │ JS-YAML: Quadratic CPU consumption in !!omap resolution (3.x │
+│                                │                     │          │        │                   │                             │ and 4.x) — CVE-2026-59870...                                 │
+│                                │                     │          │        │                   │                             │ https://github.com/advisories/GHSA-5p4m-2wfm-xmqj            │
+├────────────────────────────────┼─────────────────────┤          │        ├───────────────────┼─────────────────────────────┼──────────────────────────────────────────────────────────────┤
+│ multer (package.json)          │ CVE-2026-2359       │          │        │ 2.0.2             │ 2.1.0                       │ multer: Multer: Denial of Service via dropped file upload    │
+│                                │                     │          │        │                   │                             │ connections                                                  │
+│                                │                     │          │        │                   │                             │ https://avd.aquasec.com/nvd/cve-2026-2359                    │
+│                                ├─────────────────────┤          │        │                   │                             ├──────────────────────────────────────────────────────────────┤
+│                                │ CVE-2026-3304       │          │        │                   │                             │ multer: Multer: Denial of Service via malformed requests     │
+│                                │                     │          │        │                   │                             │ https://avd.aquasec.com/nvd/cve-2026-3304                    │
+│                                ├─────────────────────┤          │        │                   ├─────────────────────────────┼──────────────────────────────────────────────────────────────┤
+│                                │ CVE-2026-3520       │          │        │                   │ 2.1.1                       │ multer: Multer: Denial of Service via malformed requests     │
+│                                │                     │          │        │                   │                             │ https://avd.aquasec.com/nvd/cve-2026-3520                    │
+│                                ├─────────────────────┤          │        │                   ├─────────────────────────────┼──────────────────────────────────────────────────────────────┤
+│                                │ CVE-2026-5079       │          │        │                   │ 2.2.0, 3.0.0-alpha.2        │ multer: Multer: Denial of Service via deeply nested field    │
+│                                │                     │          │        │                   │                             │ names in multipart...                                        │
+│                                │                     │          │        │                   │                             │ https://avd.aquasec.com/nvd/cve-2026-5079                    │
+├────────────────────────────────┼─────────────────────┤          │        ├───────────────────┼─────────────────────────────┼──────────────────────────────────────────────────────────────┤
+│ nanoid (package.json)          │ CVE-2026-67213      │          │        │ 3.3.12            │ 3.3.18, 5.1.6               │ nanoid: nanoid: Denial of Service via infinite loop in       │
+│                                │                     │          │        │                   │                             │ random ID generation...                                      │
+│                                │                     │          │        │                   │                             │ https://avd.aquasec.com/nvd/cve-2026-67213                   │
+│                                ├─────────────────────┤          │        │                   ├─────────────────────────────┼──────────────────────────────────────────────────────────────┤
+│                                │ CVE-2026-67214      │          │        │                   │ 3.3.16, 5.1.16              │ nanoid: nanoid: Denial of Service via negative size input in │
+│                                │                     │          │        │                   │                             │ non-secure module...                                         │
+│                                │                     │          │        │                   │                             │ https://avd.aquasec.com/nvd/cve-2026-67214                   │
+│                                │                     │          │        ├───────────────────┤                             │                                                              │
+│                                │                     │          │        │ 5.1.11            │                             │                                                              │
+│                                │                     │          │        │                   │                             │                                                              │
+│                                │                     │          │        │                   │                             │                                                              │
+├────────────────────────────────┼─────────────────────┤          │        ├───────────────────┼─────────────────────────────┼──────────────────────────────────────────────────────────────┤
+│ postcss (package.json)         │ CVE-2026-73646      │          │        │ 8.5.15            │ 8.5.18                      │ postcss: PostCSS: Information disclosure via path traversal  │
+│                                │                     │          │        │                   │                             │ in source map auto-loading                                   │
+│                                │                     │          │        │                   │                             │ https://avd.aquasec.com/nvd/cve-2026-73646                   │
+├────────────────────────────────┼─────────────────────┤          │        ├───────────────────┼─────────────────────────────┼──────────────────────────────────────────────────────────────┤
+│ svgo (package.json)            │ CVE-2026-73650      │          │        │ 3.3.3             │ 2.8.3, 3.3.4, 4.0.2         │ SVGO removeScripts plugin leaves some executable scripts     │
+│                                │                     │          │        │                   │                             │ intact                                                       │
+│                                │                     │          │        │                   │                             │ https://avd.aquasec.com/nvd/cve-2026-73650                   │
+├────────────────────────────────┼─────────────────────┤          │        ├───────────────────┼─────────────────────────────┼──────────────────────────────────────────────────────────────┤
+│ tar (package.json)             │ CVE-2026-59874      │          │        │ 7.5.16            │ 7.5.18                      │ tar: Node-tar: Denial of Service via malformed tar archive   │
+│                                │                     │          │        │                   │                             │ header                                                       │
+│                                │                     │          │        │                   │                             │ https://avd.aquasec.com/nvd/cve-2026-59874                   │
+│                                ├─────────────────────┤          │        │                   ├─────────────────────────────┼──────────────────────────────────────────────────────────────┤
+│                                │ CVE-2026-73566      │          │        │                   │ 7.5.21                      │ tar: node-tar: Denial of Service via crafted long-path tar   │
+│                                │                     │          │        │                   │                             │ archive                                                      │
+│                                │                     │          │        │                   │                             │ https://avd.aquasec.com/nvd/cve-2026-73566                   │
+│                                │                     │          │        ├───────────────────┤                             │                                                              │
+│                                │                     │          │        │ 7.5.19            │                             │                                                              │
+│                                │                     │          │        │                   │                             │                                                              │
+│                                │                     │          │        │                   │                             │                                                              │
+├────────────────────────────────┼─────────────────────┤          │        ├───────────────────┼─────────────────────────────┼──────────────────────────────────────────────────────────────┤
+│ undici (package.json)          │ CVE-2026-12151      │          │        │ 6.26.0            │ 6.27.0, 7.28.0, 8.5.0       │ undici: undici: Denial of Service due to unbounded memory    │
+│                                │                     │          │        │                   │                             │ growth via WebSocket...                                      │
+│                                │                     │          │        │                   │                             │ https://avd.aquasec.com/nvd/cve-2026-12151                   │
+└────────────────────────────────┴─────────────────────┴──────────┴────────┴───────────────────┴─────────────────────────────┴──────────────────────────────────────────────────────────────┘
+2026-09-02T07:06:44Z	INFO	Vulnerability scanning is enabled
+2026-09-02T07:06:44Z	INFO	Secret scanning is enabled
+2026-09-02T07:06:44Z	INFO	If your scanning is slow, please try '--scanners vuln' to disable secret scanning
+2026-09-02T07:06:44Z	INFO	Please see also https://aquasecurity.github.io/trivy/v0.52/docs/scanner/secret/#recommendation for faster secret detection
+2026-09-02T07:06:44Z	INFO	Detected OS	family="alpine" version="3.24.1"
+2026-09-02T07:06:44Z	WARN	This OS version is not on the EOL list	family="alpine" version="3.24"
+2026-09-02T07:06:44Z	INFO	[alpine] Detecting vulnerabilities...	os_version="3.24" repository="3.24" pkg_num=19
+2026-09-02T07:06:44Z	INFO	Number of language-specific files	num=1
+2026-09-02T07:06:44Z	INFO	[node-pkg] Detecting vulnerabilities...
+
+registry-gitlab.nexon.com/nwb-console-api:latest (alpine 3.24.1)
+================================================================
+Total: 0 (CRITICAL: 0)
+
+2026-09-02T07:06:44Z	INFO	Table result includes only package filenames. Use '--format json' option to get the full path to the package file.
+
+Node.js (node-pkg)
+==================
+Total: 2 (CRITICAL: 2)
+
+┌────────────────────────────────┬────────────────┬──────────┬────────┬───────────────────┬───────────────┬──────────────────────────────────────────────────────────────┐
+│            Library             │ Vulnerability  │ Severity │ Status │ Installed Version │ Fixed Version │                            Title                             │
+├────────────────────────────────┼────────────────┼──────────┼────────┼───────────────────┼───────────────┼──────────────────────────────────────────────────────────────┤
+│ fast-xml-parser (package.json) │ CVE-2026-25896 │ CRITICAL │ fixed  │ 5.2.5             │ 5.3.5, 4.5.4  │ fast-xml-parser: fast-xml-parser: Cross-Site Scripting (XSS) │
+│                                │                │          │        │                   │               │ due to improper DOCTYPE entity handling                      │
+│                                │                │          │        │                   │               │ https://avd.aquasec.com/nvd/cve-2026-25896                   │
+├────────────────────────────────┼────────────────┤          │        ├───────────────────┼───────────────┼──────────────────────────────────────────────────────────────┤
+│ tar (package.json)             │ CVE-2026-59873 │          │        │ 7.5.16            │ 7.5.19        │ tar: node-tar: Denial of Service via crafted gzip bomb       │
+│                                │                │          │        │                   │               │ https://avd.aquasec.com/nvd/cve-2026-59873                   │
+└────────────────────────────────┴────────────────┴──────────┴────────┴───────────────────┴───────────────┴──────────────────────────────────────────────────────────────┘
+
+section_end:1788332804:step_script
+[0Ksection_start:1788332804:upload_artifacts_on_failure
+[0K[0K[36;1mUploading artifacts for failed job[0;m[0;m
+[32;1mUploading artifacts...[0;m
+trivy_high.json: found 1 matching files and directories[0;m 
+trivy_critical.json: found 1 matching files and directories[0;m 
+Uploading artifacts as "archive" to coordinator... 201 Created[0;m  id[0;m=6237038 responseStatus[0;m=201 Created token[0;m=glcbt-64
+
+section_end:1788332805:upload_artifacts_on_failure
+[0Ksection_start:1788332805:cleanup_file_variables
+[0K[0K[36;1mCleaning up project directory and file based variables[0;m[0;m
+
+section_end:1788332805:cleanup_file_variables
+[0K[31;1mERROR: Job failed: command terminated with exit code 1
+[0;m
