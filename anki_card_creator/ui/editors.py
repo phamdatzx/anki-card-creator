@@ -78,17 +78,20 @@ class FamilyMemberDialog(QDialog):
     def __init__(self, item: dict[str, Any], parent=None) -> None:
         super().__init__(parent or mw)
         self.setWindowTitle("Edit word form")
-        self.resize(420, 280)
+        self.resize(480, 400)
         self._original = dict(item)
         self._word = QLineEdit(str(item.get("word") or ""))
         self._type = QLineEdit(str(item.get("type") or ""))
         self._ipa = QLineEdit(str(item.get("ipa") or ""))
         self._ipa.setPlaceholderText("/ˈwɜrd/")
-        self._special = QTextEdit(str(item.get("special_definition") or ""))
-        self._special.setPlaceholderText(
-            "Only if meaning differs a lot from the root; leave empty otherwise"
-        )
-        self._special.setMinimumHeight(80)
+        self._vietnamese = QLineEdit(str(item.get("vietnamese") or ""))
+        self._vietnamese.setPlaceholderText("Required")
+        self._definition = QTextEdit(str(item.get("definition") or ""))
+        self._definition.setPlaceholderText("Required")
+        self._definition.setMinimumHeight(80)
+        self._examples = QTextEdit(as_text(item.get("examples"), multiline=True))
+        self._examples.setPlaceholderText("Required; one example per line")
+        self._examples.setMinimumHeight(80)
         self._popularity = QLineEdit(score_field_text(item.get("popularity")))
         self._popularity.setPlaceholderText("1–5")
         self._difficulty = QLineEdit(score_field_text(item.get("difficulty")))
@@ -98,7 +101,9 @@ class FamilyMemberDialog(QDialog):
             ("Word:", self._word),
             ("Type:", self._type),
             ("IPA:", self._ipa),
-            ("Special definition:", self._special),
+            ("Vietnamese:", self._vietnamese),
+            ("Definition:", self._definition),
+            ("Examples:", self._examples),
             ("Popularity (1–5):", self._popularity),
             ("Difficulty (1–5):", self._difficulty),
         ):
@@ -115,12 +120,13 @@ class FamilyMemberDialog(QDialog):
 
     def result_data(self) -> dict[str, Any]:
         data = dict(self._original)
-        special = self._special.toPlainText().strip()
         data.update(
             word=self._word.text().strip(),
             type=self._type.text().strip(),
             ipa=self._ipa.text().strip(),
-            special_definition=special or None,
+            vietnamese=self._vietnamese.text().strip(),
+            definition=self._definition.toPlainText().strip(),
+            examples=split_list(self._examples.toPlainText(), multiline=True),
             popularity=parse_score(self._popularity.text().strip()),
             difficulty=parse_score(self._difficulty.text().strip()),
         )

@@ -162,6 +162,10 @@ class LookupDialog(QDialog):
         self._root_definition.setVerticalScrollBarPolicy(
             Qt.ScrollBarPolicy.ScrollBarAsNeeded
         )
+        self._root_examples = QTextEdit()
+        self._root_examples.setPlaceholderText("Required; one example per line")
+        self._root_examples.setMinimumHeight(60)
+        self._root_examples.setAcceptRichText(False)
         self._root_vietnamese = QLineEdit()
         self._root_popularity = QLineEdit()
         self._root_popularity.setPlaceholderText("1–5")
@@ -173,6 +177,7 @@ class LookupDialog(QDialog):
             ("Root type:", self._root_type),
             ("Root IPA:", self._root_ipa),
             ("Root definition:", self._root_definition),
+            ("Root examples:", self._root_examples),
             ("Root Vietnamese:", self._root_vietnamese),
             ("Root popularity:", self._root_popularity),
             ("Root difficulty:", self._root_difficulty),
@@ -291,6 +296,7 @@ class LookupDialog(QDialog):
             widget.clear()
         for widget in (
             self._root_definition,
+            self._root_examples,
             self._gap,
             self._explanation,
             self._examples,
@@ -367,6 +373,9 @@ class LookupDialog(QDialog):
         self._root_type.setText(str(root.get("type") or ""))
         self._root_ipa.setText(str(root.get("ipa") or ""))
         self._root_definition.setPlainText(str(root.get("definition") or ""))
+        self._root_examples.setPlainText(
+            as_text(root.get("examples"), multiline=True)
+        )
         self._root_vietnamese.setText(str(root.get("vietnamese") or ""))
         self._root_popularity.setText(score_field_text(root.get("popularity")))
         self._root_difficulty.setText(score_field_text(root.get("difficulty")))
@@ -448,6 +457,9 @@ class LookupDialog(QDialog):
                 "type": self._root_type.text().strip(),
                 "ipa": self._root_ipa.text().strip(),
                 "definition": self._root_definition.toPlainText().strip(),
+                "examples": split_list(
+                    self._root_examples.toPlainText(), multiline=True
+                ),
                 "vietnamese": self._root_vietnamese.text().strip(),
                 "popularity": parse_score(self._root_popularity.text()),
                 "difficulty": parse_score(self._root_difficulty.text()),
@@ -496,6 +508,31 @@ class LookupDialog(QDialog):
             payload = self._form_data()
             if not payload["rootWord"]["word"] or not payload["other"]:
                 showWarning("Root word and one related form are required.", parent=self)
+                return
+            missing = []
+            root = payload["rootWord"]
+            if (
+                not root["definition"]
+                or not root["vietnamese"]
+                or not root["examples"]
+            ):
+                missing.append("root word")
+            missing.extend(
+                f'{item["word"]} ({item["type"]})'
+                for item in payload["other"]
+                if (
+                    not item["definition"].strip()
+                    or not item["vietnamese"].strip()
+                    or not item["examples"]
+                )
+            )
+            if missing:
+                showWarning(
+                    "Each word form needs Vietnamese meaning, a definition, "
+                    "and at least one example:\n"
+                    + "\n".join(f"• {label}" for label in missing),
+                    parent=self,
+                )
                 return
         elif self._card_type() is CardType.WORD_PATTERN:
             payload = self._pattern_data()

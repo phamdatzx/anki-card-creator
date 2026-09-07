@@ -101,20 +101,15 @@ def definition_audio_tags(
 
 def unique_forms(
     forms: Iterable[WordFormItem],
-) -> dict[AudioKey, tuple[str, str, str, str]]:
-    unique: dict[AudioKey, tuple[str, str, str, str]] = {}
+) -> dict[AudioKey, WordFormItem]:
+    unique: dict[AudioKey, WordFormItem] = {}
     for item in forms:
         word = str(item.get("word") or "").strip()
         part_of_speech = str(item.get("type") or "").strip()
         if word:
             unique.setdefault(
                 form_audio_key(word, part_of_speech),
-                (
-                    word,
-                    part_of_speech,
-                    str(item.get("special_definition") or ""),
-                    str(item.get("ipa") or ""),
-                ),
+                item,
             )
     return unique
 
@@ -135,19 +130,19 @@ def word_form_audio(
         write_data,
         part_of_speech=str(root.get("type") or ""),
         definition=str(root.get("definition") or ""),
+        examples=root.get("examples"),
         ipa=str(root.get("ipa") or ""),
     )
     tags: dict[AudioKey, str] = {}
-    for index, (key, (word, pos, definition, ipa)) in enumerate(
-        forms.items(), start=2
-    ):
+    for index, (key, item) in enumerate(forms.items(), start=2):
         on_progress(index, total)
         tags[key] = store_audio(
-            word,
+            str(item.get("word") or ""),
             config,
             write_data,
-            part_of_speech=pos,
-            definition=definition,
-            ipa=ipa,
+            part_of_speech=str(item.get("type") or ""),
+            definition=str(item.get("definition") or ""),
+            examples=item.get("examples"),
+            ipa=str(item.get("ipa") or ""),
         )
     return root_audio, tags

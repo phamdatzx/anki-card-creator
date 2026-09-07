@@ -24,6 +24,7 @@ class RootWord(TypedDict):
     type: str
     definition: str
     vietnamese: str
+    examples: list[str]
     ipa: str
     popularity: int | None
     difficulty: int | None
@@ -32,7 +33,9 @@ class RootWord(TypedDict):
 class WordFormItem(TypedDict):
     word: str
     type: str
-    special_definition: str | None
+    definition: str
+    vietnamese: str
+    examples: list[str]
     ipa: str
     popularity: int | None
     difficulty: int | None
@@ -72,6 +75,18 @@ def _string_list(value: Any, path: str) -> None:
         isinstance(item, str) for item in value
     ):
         raise ValueError(f"{path} must be a list of strings")
+
+
+def _nonempty_string(value: Any, path: str) -> None:
+    _string(value, path)
+    if not value.strip():
+        raise ValueError(f"{path} must not be empty")
+
+
+def _nonempty_string_list(value: Any, path: str) -> None:
+    _string_list(value, path)
+    if not value or any(not item.strip() for item in value):
+        raise ValueError(f"{path} must contain at least one non-empty string")
 
 
 def _score(value: Any, path: str) -> None:
@@ -123,13 +138,17 @@ def validate_word_form_payload(value: Any) -> WordFormPayload:
         "type",
         "definition",
         "vietnamese",
+        "examples",
         "ipa",
         "popularity",
         "difficulty",
     )
     _require(root, root_required, "response.rootWord")
-    for key in ("word", "type", "definition", "vietnamese", "ipa"):
+    for key in ("word", "type", "ipa"):
         _string(root[key], f"response.rootWord.{key}")
+    _nonempty_string(root["definition"], "response.rootWord.definition")
+    _nonempty_string(root["vietnamese"], "response.rootWord.vietnamese")
+    _nonempty_string_list(root["examples"], "response.rootWord.examples")
     for key in ("popularity", "difficulty"):
         _score(root[key], f"response.rootWord.{key}")
     if not isinstance(payload["other"], list):
@@ -137,7 +156,9 @@ def validate_word_form_payload(value: Any) -> WordFormPayload:
     item_required = (
         "word",
         "type",
-        "special_definition",
+        "definition",
+        "vietnamese",
+        "examples",
         "ipa",
         "popularity",
         "difficulty",
@@ -148,8 +169,9 @@ def validate_word_form_payload(value: Any) -> WordFormPayload:
         _require(item, item_required, path)
         for key in ("word", "type", "ipa"):
             _string(item[key], f"{path}.{key}")
-        if item["special_definition"] is not None:
-            _string(item["special_definition"], f"{path}.special_definition")
+        _nonempty_string(item["definition"], f"{path}.definition")
+        _nonempty_string(item["vietnamese"], f"{path}.vietnamese")
+        _nonempty_string_list(item["examples"], f"{path}.examples")
         for key in ("popularity", "difficulty"):
             _score(item[key], f"{path}.{key}")
     return cast(WordFormPayload, payload)

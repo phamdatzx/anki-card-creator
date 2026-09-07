@@ -30,8 +30,20 @@ def test_word_form_summary_and_stored_html():
     payload = {
         "rootWord": {"word": "able", "type": "adjective"},
         "other": [
-            {"word": "ability", "type": "noun"},
-            {"word": "inability", "type": "noun"},
+            {
+                "word": "ability",
+                "type": "noun",
+                "definition": "the power to do something",
+                "vietnamese": "khả năng",
+                "examples": ["Her ability improved."],
+            },
+            {
+                "word": "inability",
+                "type": "noun",
+                "definition": "the lack of power to do something",
+                "vietnamese": "sự bất lực",
+                "examples": ["His inability surprised us."],
+            },
         ],
     }
     assert word_form_card_summaries(payload) == ["able (adj), 2N"]
@@ -40,6 +52,9 @@ def test_word_form_summary_and_stored_html():
     )
     assert html.index("ability") < html.index("inability")
     assert 'src="ability.mp3"' in html
+    assert "khả năng" in html
+    assert "the power to do something" in html
+    assert "<li>Her ability improved.</li>" in html
     assert examples_html(["One.", "Two."]) == (
         '<ul class="examples-list"><li>One.</li><li>Two.</li></ul>'
     )

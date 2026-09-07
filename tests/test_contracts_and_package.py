@@ -13,6 +13,7 @@ from anki_card_creator.lookups.contracts import (
     WordPatternPayload,
     validate_normal_payload,
     validate_sentence_payload,
+    validate_word_form_payload,
 )
 from anki_card_creator.lookups.schemas import (
     NORMAL_SCHEMA,
@@ -90,6 +91,37 @@ def test_sentence_payload_validation_requires_vietnamese_string():
     assert validate_sentence_payload(payload) is payload
     with pytest.raises(ValueError, match="must be a string"):
         validate_sentence_payload({"vietnamese": ["not text"]})
+
+
+def test_word_form_payload_requires_definitions_and_examples():
+    payload = {
+        "rootWord": {
+            "word": "able",
+            "type": "adjective",
+            "definition": "having the skill to do something",
+            "vietnamese": "có thể",
+            "examples": ["She is able to help."],
+            "ipa": "/ˈeɪbəl/",
+            "popularity": 5,
+            "difficulty": 1,
+        },
+        "other": [
+            {
+                "word": "ability",
+                "type": "noun",
+                "definition": "the skill to do something",
+                "vietnamese": "khả năng",
+                "examples": ["Her ability improved."],
+                "ipa": "/əˈbɪləti/",
+                "popularity": 4,
+                "difficulty": 2,
+            }
+        ],
+    }
+    assert validate_word_form_payload(payload) is payload
+    payload["other"][0]["examples"] = []
+    with pytest.raises(ValueError, match="at least one non-empty string"):
+        validate_word_form_payload(payload)
 
 
 def test_package_is_recursive_and_excludes_local_files(tmp_path):

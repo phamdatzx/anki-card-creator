@@ -51,8 +51,9 @@ If Anki’s add-ons folder differs (e.g. Flatpak on Linux), use the path shown b
 
 - Type any form in the family (root or derived). OpenAI chooses the **true root** (e.g. `neatly` → root `neat`) and returns related forms, each with **popularity** and **difficulty** (1–5).
 - Check related forms to include; uncheck ones you do not want.
-- Double-click a form to edit word, type, special definition, or scores.
-- The card back includes the root word's editable Vietnamese meaning.
+- Every root and related form includes a required Vietnamese meaning, definition, and at least one English example sentence.
+- Double-click a form to edit its word, type, Vietnamese meaning, definition, examples, IPA, or scores.
+- The card back includes the root word's editable Vietnamese meaning, definition, and examples.
 - Root and related forms include editable standard American English **IPA**; root IPA appears in the root section, and each form’s IPA appears beside that form.
 - Creates **separate cards per POS type** — e.g. `able (adj), 2N` → one card for 2 nouns; `able (adj), 1V` → one card for 1 verb.
 - On the card **back**, **related forms appear first**, then the root word and root definition.
@@ -63,7 +64,7 @@ If Anki’s add-ons folder differs (e.g. Flatpak on Linux), use the path shown b
   selected definition receives its own clip, guided by its part of speech,
   definition, and first example so homographs can use the correct pronunciation.
 - Word form cards play the resolved root word on the front. On the answer side, root and related-form audio use click-only controls; a card with three nouns has one control for each noun, in display order.
-- Word Form TTS uses the LLM-provided IPA, part of speech, and definition to select the intended standard American English pronunciation.
+- Word Form TTS uses the LLM-provided IPA, part of speech, definition, and first example to select the intended standard American English pronunciation.
 - TTS is requested only after you click **Create cards**, so abandoned lookups
   incur no audio cost. Normal uses one clip per unique selected sense; Word Form
   creates its root clip once and one MP3 for each distinct selected form, reused
@@ -99,7 +100,7 @@ Cards are added to the **currently selected deck**.
 | Card type | Note type | Front | Back |
 | --- | --- | --- | --- |
 | Normal | `VIP Translate` | part of speech + definition | word, Vietnamese meaning, audio, synonyms, examples |
-| Word form | `VIP Word Form` | e.g. `able (adj), 2N` + root audio | related forms with sequential form audio, then root + Vietnamese meaning + definition |
+| Word form | `VIP Word Form` | e.g. `able (adj), 2N` + root audio | related forms with Vietnamese meanings, definitions, and examples, then root + Vietnamese meaning + definition + examples |
 | Word pattern | `VIP Word Pattern` | gap sentence with Vietnamese meaning | answer, Vietnamese, pattern, explanation, examples |
 | Sentence | `VIP Sentence` | Vietnamese meaning | English sentence |
 

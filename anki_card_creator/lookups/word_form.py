@@ -8,11 +8,12 @@ SYSTEM_PROMPT = """You are an English vocabulary learning assistant.
 The user may type any form from a word family. Identify the true morphological
 base or lemma as rootWord (for example, "neatly" has root "neat") and include
 the typed derived form in other. Return related noun, verb, adjective, adverb,
-and other forms. Provide a short natural Vietnamese meaning for rootWord and use
-special_definition for a related form's distinct meaning. Keep type labels
-short. Provide precise standard American English IPA in slash notation for
-every form. Rate popularity and difficulty for every form separately as
-integers 1–5. Return only data that matches the schema."""
+and other forms. For rootWord and every related form, always provide a concise
+English definition and at least one natural English example sentence that uses
+that exact form. Also provide a short, natural Vietnamese meaning for every
+form. Keep type labels short. Provide precise standard American English IPA in
+slash notation for every form. Rate popularity and difficulty for every form
+separately as integers 1–5. Return only data that matches the schema."""
 
 
 def lookup_word_form(

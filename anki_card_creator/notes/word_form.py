@@ -4,7 +4,7 @@ from typing import Any
 
 from ..audio_keys import AudioKey, form_audio_key
 from ..lookups.contracts import WordFormItem, WordFormPayload
-from .shared import audio_control
+from .shared import audio_control, examples_html
 
 NOTE_TYPE_NAME = "VIP Word Form"
 FIELDS = (
@@ -13,6 +13,7 @@ FIELDS = (
     "RootType",
     "Pronunciation",
     "RootDefinition",
+    "RootExamples",
     "RootVietnamese",
     "FamilyHtml",
     "Audio",
@@ -34,7 +35,9 @@ CARD_BACK = (
     '{{#Pronunciation}}<div class="section section-meta"><span class="section-label">Pronunciation</span>'
     '<div class="meta-row">{{Pronunciation}}</div></div>{{/Pronunciation}}\n'
     '{{#RootDefinition}}<div class="section"><span class="section-label">Root definition</span>'
-    "<div>{{RootDefinition}}</div></div>{{/RootDefinition}}"
+    "<div>{{RootDefinition}}</div></div>{{/RootDefinition}}\n"
+    '{{#RootExamples}}<div class="section"><span class="section-label">Examples</span>'
+    "<div>{{RootExamples}}</div></div>{{/RootExamples}}"
 )
 
 POS_ABBREV = {
@@ -109,10 +112,11 @@ def word_form_family_html(
             f'<div class="family-word">{word}'
             f'<span class="badge">{pos}</span> {audio}</div>'
         )
-        if item.get("special_definition"):
-            block += (
-                f'<div class="family-special">{item["special_definition"]}</div>'
-            )
+        block += (
+            f'<div class="family-special">{item.get("vietnamese") or ""}</div>'
+        )
+        block += f'<div class="family-special">{item.get("definition") or ""}</div>'
+        block += examples_html(item.get("examples"))
         if item.get("ipa"):
             block += f'<div class="family-ipa">{item["ipa"]}</div>'
         lines.append(block + "</div>")
@@ -143,6 +147,7 @@ def add_word_form_notes(
         note["RootType"] = str(root.get("type") or "")
         note["Pronunciation"] = str(root.get("ipa") or "")
         note["RootDefinition"] = str(root.get("definition") or "")
+        note["RootExamples"] = examples_html(root.get("examples"))
         note["RootVietnamese"] = str(root.get("vietnamese") or "")
         note["FamilyHtml"] = word_form_family_html(items, audio_by_form)
         note["Audio"] = audio_control(root_audio)

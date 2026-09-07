@@ -30,8 +30,9 @@ def item_label(result: dict[str, Any]) -> str:
 def family_item_label(item: dict[str, Any]) -> str:
     word = item.get("word") or "?"
     pos = item.get("type") or "?"
-    special = item.get("special_definition")
-    body = f"{word} ({pos}) — {special}" if special else f"{word} ({pos})"
+    definition = item.get("definition") or ""
+    vietnamese = item.get("vietnamese") or ""
+    body = f"{word} ({pos}) — {vietnamese}\n{definition}"
     ipa = str(item.get("ipa") or "").strip()
     if ipa:
         body += f" {ipa}"
