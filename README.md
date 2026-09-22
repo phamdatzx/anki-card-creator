@@ -1,7 +1,8 @@
 # Anki Card Creator
 
-Anki add-on for creating vocabulary cards from four card types — **Normal**,
-**Word form**, **Word pattern**, and **Sentence** — powered by OpenAI.
+Anki add-on for creating vocabulary cards from five card types — **Normal**,
+**Word form**, **Word pattern**, **Sentence**, and **Vietnamese → English** —
+powered by OpenAI.
 
 ## Install (development)
 
@@ -36,6 +37,7 @@ If Anki’s add-ons folder differs (e.g. Flatpak on Linux), use the path shown b
 | **Word form** | Any family member (e.g. `neatly`) | OpenAI | LLM picks true root (`neat`) + related forms; one card **per POS group** |
 | **Word pattern** | A collocation / pattern | OpenAI | One gap-fill card |
 | **Sentence** | An English sentence | OpenAI | One Vietnamese-to-English translation card |
+| **Vietnamese → English** | A Vietnamese word or meaning | OpenAI | One **Normal**-format card per selected English word |
 
 #### Normal
 
@@ -60,9 +62,10 @@ If Anki’s add-ons folder differs (e.g. Flatpak on Linux), use the path shown b
 
 ### Pronunciation audio
 
-- Normal cards speak the revealed word or phrasal verb on the answer side. Each
-  selected definition receives its own clip, guided by its part of speech,
-  definition, and first example so homographs can use the correct pronunciation.
+- Normal (and Vietnamese → English) cards speak the revealed word or phrasal
+  verb on the answer side. Each selected definition receives its own clip,
+  guided by its part of speech, definition, and first example so homographs
+  can use the correct pronunciation.
 - Word form cards play the resolved root word on the front. On the answer side, root and related-form audio use click-only controls; a card with three nouns has one control for each noun, in display order.
 - Word Form TTS uses the LLM-provided IPA, part of speech, definition, and first example to select the intended standard American English pronunciation.
 - TTS is requested only after you click **Create cards**, so abandoned lookups
@@ -84,6 +87,21 @@ If Anki’s add-ons folder differs (e.g. Flatpak on Linux), use the path shown b
 - The front shows the Vietnamese meaning; the back reveals the English sentence.
 - Sentence cards do not generate pronunciation audio.
 
+#### Vietnamese → English
+
+- Enter a Vietnamese word or meaning (e.g. `quyết định`). OpenAI returns
+  distinct matching English words/phrases (e.g. `decision` (noun), `decide`
+  (verb)), each with its own definition, Vietnamese meaning, part of speech,
+  IPA, synonyms, examples, and **popularity**/**difficulty** (1–5).
+- Check the English words you want; each selected result becomes its own
+  card, using the **exact same note type and format as Normal** (front:
+  definition + part of speech; back: word, audio, Vietnamese, pronunciation,
+  synonyms, examples).
+- Double-click a result to edit its word, definition, Vietnamese meaning,
+  part of speech, IPA, synonyms, examples, or scores before creating cards.
+- Uses the same pronunciation-audio behavior as Normal: one clip per
+  selected result, generated only when you click **Create cards**.
+
 ### UI shortcuts & workflow
 
 | Action | How |
@@ -103,6 +121,7 @@ Cards are added to the **currently selected deck**.
 | Word form | `VIP Word Form` | e.g. `able (adj), 2N` + root audio | related forms with Vietnamese meanings, definitions, and examples, then root + Vietnamese meaning + definition + examples |
 | Word pattern | `VIP Word Pattern` | gap sentence with Vietnamese meaning | answer, Vietnamese, pattern, explanation, examples |
 | Sentence | `VIP Sentence` | Vietnamese meaning | English sentence |
+| Vietnamese → English | `VIP Translate` (shared with Normal) | part of speech + definition | word, Vietnamese meaning, audio, synonyms, examples |
 
 Card templates use styled sections (labels, badges, example lists) with light and night mode support. Opening the add-on syncs note type templates to the latest version.
 

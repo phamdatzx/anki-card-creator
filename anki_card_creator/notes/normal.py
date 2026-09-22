@@ -49,7 +49,7 @@ def build_note(
     result: DefinitionResult,
 ) -> Any:
     note = col.new_note(model)
-    note["Word"] = word
+    note["Word"] = str(result.get("word") or word)
     note["Pronunciation"] = str(result.get("ipa") or pronunciation)
     note["SyllableCount"] = syllable_count
     note["Audio"] = audio

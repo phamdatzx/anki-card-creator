@@ -35,4 +35,4 @@ def test_unique_forms_deduplicates_without_reordering():
     ]
     unique = unique_forms(forms)
     assert list(unique) == [("ability", "noun"), ("enable", "verb")]
-    assert unique[("ability", "noun")][3] == "/a/"
+    assert unique[("ability", "noun")]["ipa"] == "/a/"

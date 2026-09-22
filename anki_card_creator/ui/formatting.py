@@ -27,6 +27,17 @@ def item_label(result: dict[str, Any]) -> str:
     return f"{scores}\n{body}" if scores else body
 
 
+def vietnamese_item_label(result: dict[str, Any]) -> str:
+    word = result.get("word") or "?"
+    pos = result.get("partOfSpeech") or "?"
+    body = f"{word} [{pos}] — {result.get('definition') or ''}"
+    ipa = str(result.get("ipa") or "").strip()
+    if ipa:
+        body += f"\n{ipa}"
+    scores = scores_compact(result)
+    return f"{scores}\n{body}" if scores else body
+
+
 def family_item_label(item: dict[str, Any]) -> str:
     word = item.get("word") or "?"
     pos = item.get("type") or "?"

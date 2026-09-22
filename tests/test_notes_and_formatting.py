@@ -5,6 +5,7 @@ from anki_card_creator.notes.word_form import (
     word_form_family_html,
 )
 from anki_card_creator.text import as_text, parse_score, split_list
+from anki_card_creator.ui.formatting import vietnamese_item_label
 
 
 def test_text_list_and_score_helpers():
@@ -62,3 +63,19 @@ def test_word_form_summary_and_stored_html():
         '<audio class="audio-control" controls preload="none" '
         'src="a&amp;amp;b.mp3"></audio>'
     )
+
+
+def test_vietnamese_item_label_shows_word_and_pos():
+    label = vietnamese_item_label(
+        {
+            "word": "decision",
+            "definition": "a choice made after considering options",
+            "partOfSpeech": "noun",
+            "ipa": "/dɪˈsɪʒən/",
+            "popularity": 5,
+            "difficulty": 2,
+        }
+    )
+    assert label.startswith("pop 5/5 · hard 2/5")
+    assert "decision [noun] — a choice made after considering options" in label
+    assert "/dɪˈsɪʒən/" in label

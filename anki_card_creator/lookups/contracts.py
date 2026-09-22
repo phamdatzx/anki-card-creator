@@ -19,6 +19,23 @@ class NormalPayload(TypedDict):
     results: list[DefinitionResult]
 
 
+class VietnameseResult(TypedDict):
+    word: str
+    definition: str
+    vietnamese: str
+    partOfSpeech: str
+    ipa: str
+    synonyms: list[str]
+    examples: list[str]
+    popularity: int | None
+    difficulty: int | None
+
+
+class VietnamesePayload(TypedDict):
+    query: str
+    results: list[VietnameseResult]
+
+
 class RootWord(TypedDict):
     word: str
     type: str
@@ -127,6 +144,37 @@ def validate_normal_payload(value: Any) -> NormalPayload:
         for key in ("popularity", "difficulty"):
             _score(item[key], f"{path}.{key}")
     return cast(NormalPayload, payload)
+
+
+def validate_vietnamese_payload(value: Any) -> VietnamesePayload:
+    payload = _mapping(value, "response")
+    _require(payload, ("query", "results"), "response")
+    _string(payload["query"], "response.query")
+    if not isinstance(payload["results"], list):
+        raise ValueError("response.results must be a list")
+    required = (
+        "word",
+        "definition",
+        "vietnamese",
+        "partOfSpeech",
+        "ipa",
+        "synonyms",
+        "examples",
+        "popularity",
+        "difficulty",
+    )
+    for index, raw in enumerate(payload["results"]):
+        path = f"response.results[{index}]"
+        item = _mapping(raw, path)
+        _require(item, required, path)
+        _nonempty_string(item["word"], f"{path}.word")
+        for key in ("definition", "vietnamese", "partOfSpeech", "ipa"):
+            _string(item[key], f"{path}.{key}")
+        for key in ("synonyms", "examples"):
+            _string_list(item[key], f"{path}.{key}")
+        for key in ("popularity", "difficulty"):
+            _score(item[key], f"{path}.{key}")
+    return cast(VietnamesePayload, payload)
 
 
 def validate_word_form_payload(value: Any) -> WordFormPayload:

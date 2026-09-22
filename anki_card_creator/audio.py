@@ -81,14 +81,24 @@ def definition_audio_tags(
     write_data: Callable[[str, bytes], str | None],
     on_progress: Callable[[int, int], None],
 ) -> list[str]:
-    unique: dict[DefinitionAudioKey, DefinitionResult] = {}
+    """Generate one TTS clip per unique result, keyed by word + sense.
+
+    Each result may carry its own "word" (e.g. Vietnamese-meaning lookups
+    that return several candidate English words); when absent, the shared
+    ``word`` argument is used, preserving the original Normal-lookup
+    behavior.
+    """
+    unique: dict[DefinitionAudioKey, tuple[str, DefinitionResult]] = {}
     for result in results:
-        unique.setdefault(definition_audio_key(word, result), result)
+        item_word = str(result.get("word") or word)
+        unique.setdefault(
+            definition_audio_key(item_word, result), (item_word, result)
+        )
     tags: dict[DefinitionAudioKey, str] = {}
-    for index, (key, result) in enumerate(unique.items(), start=1):
+    for index, (key, (item_word, result)) in enumerate(unique.items(), start=1):
         on_progress(index, len(unique))
         tags[key] = store_audio(
-            word,
+            item_word,
             config,
             write_data,
             part_of_speech=str(result.get("partOfSpeech") or ""),
@@ -96,7 +106,10 @@ def definition_audio_tags(
             examples=result.get("examples"),
             ipa=str(result.get("ipa") or ""),
         )
-    return [tags[definition_audio_key(word, result)] for result in results]
+    return [
+        tags[definition_audio_key(str(result.get("word") or word), result)]
+        for result in results
+    ]
 
 
 def unique_forms(

@@ -43,6 +43,43 @@ NORMAL_SCHEMA: dict[str, Any] = {
     "required": ["word", "results"],
 }
 
+VIETNAMESE_RESULT: dict[str, Any] = {
+    "type": "object",
+    "additionalProperties": False,
+    "properties": {
+        "word": {"type": "string"},
+        "definition": {"type": "string"},
+        "vietnamese": {"type": "string"},
+        "partOfSpeech": {"type": "string"},
+        "ipa": {"type": "string"},
+        "synonyms": STRING_LIST,
+        "examples": STRING_LIST,
+        "popularity": SCORE_1_TO_5,
+        "difficulty": SCORE_1_TO_5,
+    },
+    "required": [
+        "word",
+        "definition",
+        "vietnamese",
+        "partOfSpeech",
+        "ipa",
+        "synonyms",
+        "examples",
+        "popularity",
+        "difficulty",
+    ],
+}
+
+VIETNAMESE_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "additionalProperties": False,
+    "properties": {
+        "query": {"type": "string"},
+        "results": {"type": "array", "items": VIETNAMESE_RESULT},
+    },
+    "required": ["query", "results"],
+}
+
 ROOT_WORD: dict[str, Any] = {
     "type": "object",
     "additionalProperties": False,

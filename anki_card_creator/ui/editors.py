@@ -17,11 +17,22 @@ from ..text import as_text, parse_score, score_field_text, split_list
 
 
 class DefinitionDetailDialog(QDialog):
-    def __init__(self, result: dict[str, Any], word: str = "", parent=None) -> None:
+    def __init__(
+        self,
+        result: dict[str, Any],
+        word: str = "",
+        parent=None,
+        *,
+        editable_word: bool = False,
+    ) -> None:
         super().__init__(parent or mw)
         self.setWindowTitle(f"Edit definition — {word}" if word else "Edit definition")
         self.resize(480, 400)
         self._original = dict(result)
+        self._editable_word = editable_word
+        if editable_word:
+            self._word = QLineEdit(str(result.get("word") or word or ""))
+            self._word.setPlaceholderText("Required")
         self._definition = QTextEdit(str(result.get("definition") or ""))
         self._definition.setMinimumHeight(80)
         self._vietnamese = QLineEdit(str(result.get("vietnamese") or ""))
@@ -38,16 +49,22 @@ class DefinitionDetailDialog(QDialog):
         self._difficulty = QLineEdit(score_field_text(result.get("difficulty")))
         self._difficulty.setPlaceholderText("1–5")
         form = QFormLayout()
-        for label, widget in (
-            ("Definition:", self._definition),
-            ("Vietnamese:", self._vietnamese),
-            ("Part of speech:", self._pos),
-            ("IPA:", self._ipa),
-            ("Synonyms:", self._synonyms),
-            ("Examples:", self._examples),
-            ("Popularity (1–5):", self._popularity),
-            ("Difficulty (1–5):", self._difficulty),
-        ):
+        rows: list[tuple[str, Any]] = []
+        if editable_word:
+            rows.append(("Word:", self._word))
+        rows.extend(
+            (
+                ("Definition:", self._definition),
+                ("Vietnamese:", self._vietnamese),
+                ("Part of speech:", self._pos),
+                ("IPA:", self._ipa),
+                ("Synonyms:", self._synonyms),
+                ("Examples:", self._examples),
+                ("Popularity (1–5):", self._popularity),
+                ("Difficulty (1–5):", self._difficulty),
+            )
+        )
+        for label, widget in rows:
             form.addRow(label, widget)
         buttons = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Save
@@ -61,6 +78,8 @@ class DefinitionDetailDialog(QDialog):
 
     def result_data(self) -> dict[str, Any]:
         data = dict(self._original)
+        if self._editable_word:
+            data["word"] = self._word.text().strip()
         data.update(
             definition=self._definition.toPlainText().strip(),
             vietnamese=self._vietnamese.text().strip(),

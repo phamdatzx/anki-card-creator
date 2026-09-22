@@ -9,15 +9,18 @@ import pytest
 from anki_card_creator.lookups.contracts import (
     NormalPayload,
     SentencePayload,
+    VietnamesePayload,
     WordFormPayload,
     WordPatternPayload,
     validate_normal_payload,
     validate_sentence_payload,
+    validate_vietnamese_payload,
     validate_word_form_payload,
 )
 from anki_card_creator.lookups.schemas import (
     NORMAL_SCHEMA,
     SENTENCE_SCHEMA,
+    VIETNAMESE_SCHEMA,
     WORD_FORM_SCHEMA,
     WORD_PATTERN_SCHEMA,
 )
@@ -31,6 +34,7 @@ def test_payload_contracts_match_schema_top_level_keys():
         (WordFormPayload, WORD_FORM_SCHEMA),
         (WordPatternPayload, WORD_PATTERN_SCHEMA),
         (SentencePayload, SENTENCE_SCHEMA),
+        (VietnamesePayload, VIETNAMESE_SCHEMA),
     )
     for contract, schema in pairs:
         assert set(get_type_hints(contract)) == set(schema["properties"])
@@ -124,6 +128,40 @@ def test_word_form_payload_requires_definitions_and_examples():
         validate_word_form_payload(payload)
 
 
+def test_vietnamese_payload_validation_requires_word_per_result():
+    payload = {
+        "query": "quyết định",
+        "results": [
+            {
+                "word": "decision",
+                "definition": "a choice made after considering options",
+                "vietnamese": "quyết định",
+                "partOfSpeech": "noun",
+                "ipa": "/dɪˈsɪʒən/",
+                "synonyms": ["choice"],
+                "examples": ["She made a big decision."],
+                "popularity": 5,
+                "difficulty": 2,
+            },
+            {
+                "word": "decide",
+                "definition": "to make a choice",
+                "vietnamese": "quyết định",
+                "partOfSpeech": "verb",
+                "ipa": "/dɪˈsaɪd/",
+                "synonyms": ["resolve"],
+                "examples": ["He decided to leave."],
+                "popularity": 5,
+                "difficulty": 2,
+            },
+        ],
+    }
+    assert validate_vietnamese_payload(payload) is payload
+    payload["results"][0]["word"] = "   "
+    with pytest.raises(ValueError, match="must not be empty"):
+        validate_vietnamese_payload(payload)
+
+
 def test_package_is_recursive_and_excludes_local_files(tmp_path):
     package = ROOT / "anki-card-creator.ankiaddon"
     subprocess.run([str(ROOT / "package.sh")], cwd=ROOT, check=True)
@@ -131,6 +169,7 @@ def test_package_is_recursive_and_excludes_local_files(tmp_path):
         names = set(archive.namelist())
     assert "lookups/normal.py" in names
     assert "lookups/sentence.py" in names
+    assert "lookups/vietnamese.py" in names
     assert "notes/word_form.py" in names
     assert "notes/sentence.py" in names
     assert "ui/dialog.py" in names
