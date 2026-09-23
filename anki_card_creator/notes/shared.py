@@ -58,6 +58,14 @@ CARD_CSS = """\
   font-size: 1.15em;
   line-height: 1.5;
 }
+.definition-vietnamese {
+  text-align: center;
+  margin-top: 0.35em;
+  font-size: 0.95em;
+  font-style: italic;
+  color: #555;
+}
+.nightMode .definition-vietnamese { color: #bbb; }
 
 .gap-prompt {
   text-align: center;

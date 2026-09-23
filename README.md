@@ -45,7 +45,9 @@ If Anki’s add-ons folder differs (e.g. Flatpak on Linux), use the path shown b
   senses; phrasal-verb senses are labeled accordingly.
 - Each sense includes **popularity** and **difficulty** (1–5) shown on the
   list before you create cards.
-- Each card back includes an editable Vietnamese meaning for its selected sense.
+- The card **front** shows the part of speech, definition, **and the
+  Vietnamese meaning** for its selected sense, so you can test recall of the
+  English word from the Vietnamese meaning too.
 - Every sense includes editable standard American English **IPA**, shown on the card back.
 - Double-click a definition to edit it (including scores) before creating cards.
 
@@ -95,8 +97,8 @@ If Anki’s add-ons folder differs (e.g. Flatpak on Linux), use the path shown b
   IPA, synonyms, examples, and **popularity**/**difficulty** (1–5).
 - Check the English words you want; each selected result becomes its own
   card, using the **exact same note type and format as Normal** (front:
-  definition + part of speech; back: word, audio, Vietnamese, pronunciation,
-  synonyms, examples).
+  part of speech + definition + Vietnamese meaning; back: word, audio,
+  pronunciation, synonyms, examples).
 - Double-click a result to edit its word, definition, Vietnamese meaning,
   part of speech, IPA, synonyms, examples, or scores before creating cards.
 - Uses the same pronunciation-audio behavior as Normal: one clip per
@@ -117,11 +119,11 @@ Cards are added to the **currently selected deck**.
 
 | Card type | Note type | Front | Back |
 | --- | --- | --- | --- |
-| Normal | `VIP Translate` | part of speech + definition | word, Vietnamese meaning, audio, synonyms, examples |
+| Normal | `VIP Translate` | part of speech + definition + Vietnamese meaning | word, audio, pronunciation, synonyms, examples |
 | Word form | `VIP Word Form` | e.g. `able (adj), 2N` + root audio | related forms with Vietnamese meanings, definitions, and examples, then root + Vietnamese meaning + definition + examples |
 | Word pattern | `VIP Word Pattern` | gap sentence with Vietnamese meaning | answer, Vietnamese, pattern, explanation, examples |
 | Sentence | `VIP Sentence` | Vietnamese meaning | English sentence |
-| Vietnamese → English | `VIP Translate` (shared with Normal) | part of speech + definition | word, Vietnamese meaning, audio, synonyms, examples |
+| Vietnamese → English | `VIP Translate` (shared with Normal) | part of speech + definition + Vietnamese meaning | word, audio, pronunciation, synonyms, examples |
 
 Card templates use styled sections (labels, badges, example lists) with light and night mode support. Opening the add-on syncs note type templates to the latest version.
 

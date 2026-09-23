@@ -19,15 +19,14 @@ FIELDS = (
 )
 CARD_FRONT = (
     '{{#PartOfSpeech}}<div class="pos-line"><span class="badge">{{PartOfSpeech}}</span></div>{{/PartOfSpeech}}\n'
-    '<div class="definition-prompt">{{Definition}}</div>'
+    '<div class="definition-prompt">{{Definition}}</div>\n'
+    '{{#Vietnamese}}<div class="definition-vietnamese">{{Vietnamese}}</div>{{/Vietnamese}}'
 )
 CARD_BACK = (
     "{{FrontSide}}\n"
     '<hr class="divider" id="answer">\n'
     '<div class="section section-word"><span class="section-label">Word</span>'
     '<div class="value">{{Word}} {{Audio}}</div></div>\n'
-    '{{#Vietnamese}}<div class="section"><span class="section-label">Vietnamese</span>'
-    "<div>{{Vietnamese}}</div></div>{{/Vietnamese}}\n"
     '{{#Pronunciation}}<div class="section section-meta"><span class="section-label">Pronunciation</span>'
     '<div class="meta-row">{{Pronunciation}}</div></div>{{/Pronunciation}}\n'
     '{{#SyllableCount}}<div class="section section-meta"><span class="section-label">Syllables</span>'
