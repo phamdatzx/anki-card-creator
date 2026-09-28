@@ -6,8 +6,10 @@ from .schemas import NORMAL_SCHEMA
 
 SYSTEM_PROMPT = """You are an English vocabulary learning assistant.
 Given an English word or phrasal verb, return distinct dictionary-style senses
-for learners. Use clear short definitions, Vietnamese meanings, natural
-examples, and relevant synonyms. partOfSpeech should be a short label (noun,
+for learners. Use clear short definitions, natural examples, and relevant
+synonyms. For each sense, vietnamese must be a brief equivalent, not a
+translation of the English definition: prefer one common Vietnamese word,
+and use a short phrase of a few words only when no single word exists. partOfSpeech should be a short label (noun,
 verb, adjective, adverb, etc.). For phrasal verbs, use "phrasal verb" unless
 another label is clearly better. For every sense, provide its precise standard
 American English IPA in slash notation, using the pronunciation appropriate to

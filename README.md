@@ -48,6 +48,9 @@ If Anki’s add-ons folder differs (e.g. Flatpak on Linux), use the path shown b
 - The card **front** shows the part of speech, definition, **and the
   Vietnamese meaning** for its selected sense, so you can test recall of the
   English word from the Vietnamese meaning too.
+- That Vietnamese meaning is a brief equivalent: one common word when one
+  exists (for example `present` → `trình bày`), otherwise a short phrase. It
+  is not a translation of the English definition.
 - Every sense includes editable standard American English **IPA**, shown on the card back.
 - Double-click a definition to edit it (including scores) before creating cards.
 
@@ -55,7 +58,7 @@ If Anki’s add-ons folder differs (e.g. Flatpak on Linux), use the path shown b
 
 - Type any form in the family (root or derived). OpenAI chooses the **true root** (e.g. `neatly` → root `neat`) and returns related forms, each with **popularity** and **difficulty** (1–5).
 - Check related forms to include; uncheck ones you do not want.
-- Every root and related form includes a required Vietnamese meaning, definition, and at least one English example sentence.
+- Every root and related form includes a required Vietnamese meaning, definition, and at least one English example sentence. The Vietnamese meaning is one common word when one exists, otherwise a short phrase.
 - Double-click a form to edit its word, type, Vietnamese meaning, definition, examples, IPA, or scores.
 - The card back includes the root word's editable Vietnamese meaning, definition, and examples.
 - Root and related forms include editable standard American English **IPA**; root IPA appears in the root section, and each form’s IPA appears beside that form.
@@ -93,7 +96,8 @@ If Anki’s add-ons folder differs (e.g. Flatpak on Linux), use the path shown b
 
 - Enter a Vietnamese word or meaning (e.g. `quyết định`). OpenAI returns
   distinct matching English words/phrases (e.g. `decision` (noun), `decide`
-  (verb)), each with its own definition, Vietnamese meaning, part of speech,
+  (verb)), each with its own definition, brief Vietnamese meaning (one word
+  when one exists, otherwise a short phrase), part of speech,
   IPA, synonyms, examples, and **popularity**/**difficulty** (1–5).
 - Check the English words you want; each selected result becomes its own
   card, using the **exact same note type and format as Normal** (front:

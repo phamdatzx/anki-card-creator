@@ -10,8 +10,10 @@ base or lemma as rootWord (for example, "neatly" has root "neat") and include
 the typed derived form in other. Return related noun, verb, adjective, adverb,
 and other forms. For rootWord and every related form, always provide a concise
 English definition and at least one natural English example sentence that uses
-that exact form. Also provide a short, natural Vietnamese meaning for every
-form. Keep type labels short. Provide precise standard American English IPA in
+that exact form. For every form, vietnamese must be a brief equivalent, not a
+translation of the English definition: prefer one common Vietnamese word,
+and use a short phrase of a few words only when no single word exists.
+Keep type labels short. Provide precise standard American English IPA in
 slash notation for every form. Rate popularity and difficulty for every form
 separately as integers 1–5. Return only data that matches the schema."""
 

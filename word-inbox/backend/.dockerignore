@@ -1,0 +1,7 @@
+bootstrap
+function.zip
+*.test
+.git
+.gitignore
+.Dockerfile*
+.dockerignore

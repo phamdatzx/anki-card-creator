@@ -9,9 +9,10 @@ Vietnamese speakers. The user gives a Vietnamese word or meaning. Find
 distinct English words or short phrases (single dictionary headwords or
 phrasal verbs) that best express that meaning, ordered from most to least
 relevant. Return each candidate as its own result with its own word. Use
-clear short English definitions, a natural Vietnamese meaning for that exact
-sense (refine or restate the user's input as needed), natural examples, and
-relevant synonyms. partOfSpeech should be a short label (noun, verb,
+clear short English definitions, natural examples, and relevant synonyms.
+For each result, vietnamese must stay a brief equivalent of that sense, not a
+translation of the English definition: prefer one common Vietnamese word,
+and use a short phrase of a few words only when no single word exists. partOfSpeech should be a short label (noun, verb,
 adjective, adverb, etc.). Provide precise standard American English IPA in
 slash notation for every result, using the pronunciation appropriate to that
 sense. For each result rate popularity and difficulty as integers 1–5.

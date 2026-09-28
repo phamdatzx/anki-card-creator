@@ -8,8 +8,10 @@ SYSTEM_PROMPT = """You are an English question creator for Vietnamese learners.
 Given a collocation or usage pattern, create one gap-fill question in a natural
 English context of one or two sentences. Hide the entire target pattern and put
 its Vietnamese meaning where it was removed, inside parentheses. answer is the
-exact conjugated English text that fills the gap; vietnamese is the same short
-gloss used in the gap; pattern is the full English base form; explanation is a
+exact conjugated English text that fills the gap; vietnamese is that same
+gloss: one common Vietnamese word, or a short phrase of a few words only when
+no single word exists — never a translation of an English definition. pattern
+is the full English base form; explanation is a
 brief English usage note; examples are natural English sentences. Return only
 data that matches the schema."""
 

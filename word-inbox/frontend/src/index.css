@@ -1,0 +1,58 @@
+:root {
+  color-scheme: light dark;
+  --bg: #f4f1ea;
+  --card: #fffdf8;
+  --ink: #1c1917;
+  --muted: #78716c;
+  --line: #e7e5e4;
+  --accent: #0f766e;
+  --accent-ink: #f0fdfa;
+  --danger: #b91c1c;
+  --shadow: 0 10px 30px rgba(28, 25, 23, 0.08);
+  font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+  line-height: 1.45;
+  font-weight: 450;
+  color: var(--ink);
+  background:
+    radial-gradient(circle at top left, rgba(15, 118, 110, 0.12), transparent 40%),
+    linear-gradient(180deg, #faf7f2 0%, var(--bg) 100%);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1c1917;
+    --card: #292524;
+    --ink: #fafaf9;
+    --muted: #a8a29e;
+    --line: #44403c;
+    --accent: #2dd4bf;
+    --accent-ink: #042f2e;
+    --danger: #f87171;
+    --shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+    background:
+      radial-gradient(circle at top left, rgba(45, 212, 191, 0.12), transparent 40%),
+      linear-gradient(180deg, #1c1917 0%, #0c0a09 100%);
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+#root {
+  min-height: 100vh;
+}
