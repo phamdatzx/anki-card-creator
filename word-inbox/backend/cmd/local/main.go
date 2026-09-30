@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net/http"
 	"os"
@@ -24,8 +25,22 @@ func main() {
 		_ = os.Setenv("CORS_ORIGIN", "*")
 	}
 
-	handler := &api.Handler{Store: store.NewMemoryStore()}
-	log.Printf("word-inbox local API on http://localhost:%s (memory store)", addr)
+	var st store.Store = store.NewMemoryStore()
+	backend := "memory store"
+	if bucket := os.Getenv("S3_BUCKET"); bucket != "" {
+		s3Store, err := store.NewS3Store(context.Background())
+		if err != nil {
+			log.Fatalf("store: %v", err)
+		}
+		st = s3Store
+		backend = "s3://" + bucket
+		if endpoint := os.Getenv("S3_ENDPOINT"); endpoint != "" {
+			backend += " via " + endpoint
+		}
+	}
+
+	handler := &api.Handler{Store: st}
+	log.Printf("word-inbox local API on http://localhost:%s (%s)", addr, backend)
 	log.Printf("APP_PASSWORD=%s APP_TOKEN=%s", os.Getenv("APP_PASSWORD"), os.Getenv("APP_TOKEN"))
 	if err := http.ListenAndServe(":"+addr, handler); err != nil {
 		log.Fatal(err)

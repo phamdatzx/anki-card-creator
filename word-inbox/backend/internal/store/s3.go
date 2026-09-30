@@ -47,8 +47,16 @@ func NewS3Store(ctx context.Context) (*S3Store, error) {
 	if err != nil {
 		return nil, fmt.Errorf("load aws config: %w", err)
 	}
+	// S3_ENDPOINT points the client at a local emulator (e.g. LocalStack).
+	endpoint := os.Getenv("S3_ENDPOINT")
+	client := s3.NewFromConfig(cfg, func(o *s3.Options) {
+		if endpoint != "" {
+			o.BaseEndpoint = aws.String(endpoint)
+			o.UsePathStyle = true
+		}
+	})
 	return &S3Store{
-		client: s3.NewFromConfig(cfg),
+		client: client,
 		bucket: bucket,
 		key:    key,
 	}, nil

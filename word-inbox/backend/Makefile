@@ -1,4 +1,4 @@
-.PHONY: tidy build-lambda zip-lambda run-local test
+.PHONY: tidy build-lambda zip-lambda run-local run-s3 test
 
 tidy:
 	go mod tidy
@@ -7,6 +7,18 @@ run-local:
 	APP_PASSWORD=$${APP_PASSWORD:-dev-password} \
 	APP_TOKEN=$${APP_TOKEN:-dev-token} \
 	CORS_ORIGIN=$${CORS_ORIGIN:-*} \
+	go run ./cmd/local
+
+# Local API backed by the docker compose S3 (LocalStack) in ../docker-compose.yml.
+run-s3:
+	APP_PASSWORD=$${APP_PASSWORD:-dev-password} \
+	APP_TOKEN=$${APP_TOKEN:-dev-token} \
+	CORS_ORIGIN=$${CORS_ORIGIN:-http://localhost:5173} \
+	S3_BUCKET=$${S3_BUCKET:-word-inbox-local} \
+	S3_ENDPOINT=$${S3_ENDPOINT:-http://localhost:$${S3_PORT:-4567}} \
+	AWS_REGION=$${AWS_REGION:-us-east-1} \
+	AWS_ACCESS_KEY_ID=test \
+	AWS_SECRET_ACCESS_KEY=test \
 	go run ./cmd/local
 
 build-lambda:

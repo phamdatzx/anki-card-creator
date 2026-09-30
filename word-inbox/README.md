@@ -5,40 +5,51 @@ password, store them on S3 via a Go Lambda API. Anki sync is a later phase.
 
 ```
 word-inbox/
-  backend/     Go Lambda + local HTTP server (+ Dockerfile)
+  backend/     Go Lambda + local HTTP server
   frontend/    Vite + React + TypeScript SPA
   infra/       Terraform (S3, Lambda, HTTP API, CloudFront)
   scripts/     deploy.sh
-  docker-compose.yml
+  localstack/  S3 bucket init hook for docker compose
+  docker-compose.yml  local S3 (LocalStack)
 ```
 
 ## Quick local run
 
-### 1. Backend (in-memory store)
+Docker only runs a local S3 (LocalStack). The backend and frontend run on the host.
 
-**Option A — Docker (recommended for API testing)**
+### 1. Local S3 (Docker)
 
 ```bash
 cd word-inbox
-docker compose up --build
-# API: http://localhost:8080
-# defaults: APP_PASSWORD=dev-password, CORS for http://localhost:5173
+docker compose up -d
+# S3 endpoint: http://localhost:4567, bucket word-inbox-local (created on startup)
 ```
 
-Optional env overrides: copy `.env.docker.example` to `.env` in `word-inbox/`, or export `APP_PASSWORD` / `APP_TOKEN` / `CORS_ORIGIN`.
+Data persists in the `s3-data` volume (`docker compose down -v` wipes it).
+To change the bucket name or host port, copy `.env.docker.example` to `.env`
+in `word-inbox/`. If you do, export the same `S3_BUCKET` / `S3_PORT` before
+running `make run-s3`.
 
-**Option B — Go on the host**
+Inspect the stored data:
+
+```bash
+docker compose exec s3 awslocal s3 ls s3://word-inbox-local/
+```
+
+### 2. Backend (Go on the host)
 
 ```bash
 cd word-inbox/backend
-export APP_PASSWORD=dev-password
-export APP_TOKEN=dev-token
-export CORS_ORIGIN=http://localhost:5173
-make run-local
-# listens on :8080
+make run-s3      # uses the local S3 above
+# or
+make run-local   # in-memory store, no Docker needed
+# listens on :8080; defaults: APP_PASSWORD=dev-password, APP_TOKEN=dev-token
 ```
 
-### 2. Frontend (always on the host)
+`cmd/local` uses the S3 store when `S3_BUCKET` is set (`S3_ENDPOINT`
+overrides the AWS endpoint), otherwise the in-memory store.
+
+### 3. Frontend (always on the host)
 
 ```bash
 cd word-inbox/frontend
