@@ -18,16 +18,17 @@ var AllowedTypes = map[string]struct{}{
 	TypeVietnamese:  {},
 }
 
+// Word is one captured item inside a batch.
 type Word struct {
-	ID        string     `json:"id"`
-	Input     string     `json:"input"`
-	Type      string     `json:"type"`
-	CreatedAt time.Time  `json:"createdAt"`
-	SyncedAt  *time.Time `json:"syncedAt"`
+	Input string `json:"input"`
+	Type  string `json:"type"`
 }
 
-type Store struct {
-	Words []Word `json:"words"`
+// Batch is one "Send" from the frontend, stored as a single S3 object.
+type Batch struct {
+	ID        string    `json:"id"`
+	CreatedAt time.Time `json:"createdAt"`
+	Words     []Word    `json:"words"`
 }
 
 func ValidType(t string) bool {

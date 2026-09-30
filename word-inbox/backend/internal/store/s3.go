@@ -4,34 +4,26 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"io"
 	"os"
-	"sort"
+	"strings"
 	"sync"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
-	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/datjax/vip-translate/word-inbox/backend/internal/model"
 )
 
-var ErrNotFound = errors.New("word not found")
-var ErrConflict = errors.New("concurrent update conflict")
-
 type Store interface {
-	List(ctx context.Context) ([]model.Word, error)
-	Create(ctx context.Context, word model.Word) (model.Word, error)
-	Delete(ctx context.Context, id string) error
+	SaveBatch(ctx context.Context, batch model.Batch) error
 }
 
+// S3Store writes each batch to its own object: <prefix><createdAt>-<id>.json.
 type S3Store struct {
 	client *s3.Client
 	bucket string
-	key    string
-	mu     sync.Mutex
+	prefix string
 }
 
 func NewS3Store(ctx context.Context) (*S3Store, error) {
@@ -39,9 +31,12 @@ func NewS3Store(ctx context.Context) (*S3Store, error) {
 	if bucket == "" {
 		return nil, fmt.Errorf("S3_BUCKET is required")
 	}
-	key := os.Getenv("S3_KEY")
-	if key == "" {
-		key = "words.json"
+	prefix := os.Getenv("S3_PREFIX")
+	if prefix == "" {
+		prefix = "batches/"
+	}
+	if !strings.HasSuffix(prefix, "/") {
+		prefix += "/"
 	}
 	cfg, err := config.LoadDefaultConfig(ctx)
 	if err != nil {
@@ -55,185 +50,46 @@ func NewS3Store(ctx context.Context) (*S3Store, error) {
 			o.UsePathStyle = true
 		}
 	})
-	return &S3Store{
-		client: client,
-		bucket: bucket,
-		key:    key,
-	}, nil
+	return &S3Store{client: client, bucket: bucket, prefix: prefix}, nil
 }
 
-func (s *S3Store) List(ctx context.Context) ([]model.Word, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	doc, _, err := s.read(ctx)
+func (s *S3Store) SaveBatch(ctx context.Context, batch model.Batch) error {
+	payload, err := json.MarshalIndent(batch, "", "  ")
 	if err != nil {
-		return nil, err
+		return fmt.Errorf("encode batch: %w", err)
 	}
-	return sortNewestFirst(doc.Words), nil
-}
-
-func (s *S3Store) Create(ctx context.Context, word model.Word) (model.Word, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	for attempt := 0; attempt < 3; attempt++ {
-		doc, etag, err := s.read(ctx)
-		if err != nil {
-			return model.Word{}, err
-		}
-		doc.Words = append(doc.Words, word)
-		if err := s.write(ctx, doc, etag); err != nil {
-			if errors.Is(err, ErrConflict) {
-				continue
-			}
-			return model.Word{}, err
-		}
-		return word, nil
-	}
-	return model.Word{}, ErrConflict
-}
-
-func (s *S3Store) Delete(ctx context.Context, id string) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	for attempt := 0; attempt < 3; attempt++ {
-		doc, etag, err := s.read(ctx)
-		if err != nil {
-			return err
-		}
-		next := make([]model.Word, 0, len(doc.Words))
-		found := false
-		for _, w := range doc.Words {
-			if w.ID == id {
-				found = true
-				continue
-			}
-			next = append(next, w)
-		}
-		if !found {
-			return ErrNotFound
-		}
-		doc.Words = next
-		if err := s.write(ctx, doc, etag); err != nil {
-			if errors.Is(err, ErrConflict) {
-				continue
-			}
-			return err
-		}
-		return nil
-	}
-	return ErrConflict
-}
-
-func (s *S3Store) read(ctx context.Context) (model.Store, *string, error) {
-	out, err := s.client.GetObject(ctx, &s3.GetObjectInput{
-		Bucket: aws.String(s.bucket),
-		Key:    aws.String(s.key),
-	})
-	if err != nil {
-		var nsk *types.NoSuchKey
-		var nsf *types.NotFound
-		if errors.As(err, &nsk) || errors.As(err, &nsf) {
-			return model.Store{Words: []model.Word{}}, nil, nil
-		}
-		// Some SDKs wrap missing keys differently.
-		var apiErr interface{ ErrorCode() string }
-		if errors.As(err, &apiErr) && (apiErr.ErrorCode() == "NoSuchKey" || apiErr.ErrorCode() == "NotFound") {
-			return model.Store{Words: []model.Word{}}, nil, nil
-		}
-		return model.Store{}, nil, fmt.Errorf("get s3 object: %w", err)
-	}
-	defer out.Body.Close()
-	body, err := io.ReadAll(out.Body)
-	if err != nil {
-		return model.Store{}, nil, fmt.Errorf("read s3 body: %w", err)
-	}
-	if len(bytes.TrimSpace(body)) == 0 {
-		return model.Store{Words: []model.Word{}}, out.ETag, nil
-	}
-	var doc model.Store
-	if err := json.Unmarshal(body, &doc); err != nil {
-		return model.Store{}, nil, fmt.Errorf("decode words.json: %w", err)
-	}
-	if doc.Words == nil {
-		doc.Words = []model.Word{}
-	}
-	return doc, out.ETag, nil
-}
-
-func (s *S3Store) write(ctx context.Context, doc model.Store, etag *string) error {
-	payload, err := json.MarshalIndent(doc, "", "  ")
-	if err != nil {
-		return fmt.Errorf("encode words.json: %w", err)
-	}
-	input := &s3.PutObjectInput{
+	key := BatchKey(s.prefix, batch)
+	_, err = s.client.PutObject(ctx, &s3.PutObjectInput{
 		Bucket:      aws.String(s.bucket),
-		Key:         aws.String(s.key),
+		Key:         aws.String(key),
 		Body:        bytes.NewReader(payload),
 		ContentType: aws.String("application/json"),
-	}
-	if etag != nil && *etag != "" {
-		input.IfMatch = etag
-	}
-	_, err = s.client.PutObject(ctx, input)
+		IfNoneMatch: aws.String("*"),
+	})
 	if err != nil {
-		var apiErr interface{ ErrorCode() string }
-		if errors.As(err, &apiErr) && apiErr.ErrorCode() == "PreconditionFailed" {
-			return ErrConflict
-		}
-		return fmt.Errorf("put s3 object: %w", err)
+		return fmt.Errorf("put s3 object %s: %w", key, err)
 	}
 	return nil
 }
 
-func sortNewestFirst(words []model.Word) []model.Word {
-	out := make([]model.Word, len(words))
-	copy(out, words)
-	sort.Slice(out, func(i, j int) bool {
-		return out[i].CreatedAt.After(out[j].CreatedAt)
-	})
-	return out
+// BatchKey sorts chronologically: batches/20260930T060000Z-<id>.json.
+func BatchKey(prefix string, batch model.Batch) string {
+	return fmt.Sprintf("%s%s-%s.json", prefix, batch.CreatedAt.UTC().Format("20060102T150405Z"), batch.ID)
 }
 
-// MemoryStore is used for local development without AWS.
+// MemoryStore is used for local development and tests without AWS.
 type MemoryStore struct {
-	mu    sync.Mutex
-	words []model.Word
+	mu      sync.Mutex
+	Batches []model.Batch
 }
 
 func NewMemoryStore() *MemoryStore {
-	return &MemoryStore{words: []model.Word{}}
+	return &MemoryStore{Batches: []model.Batch{}}
 }
 
-func (m *MemoryStore) List(ctx context.Context) ([]model.Word, error) {
+func (m *MemoryStore) SaveBatch(ctx context.Context, batch model.Batch) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	return sortNewestFirst(m.words), nil
-}
-
-func (m *MemoryStore) Create(ctx context.Context, word model.Word) (model.Word, error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.words = append(m.words, word)
-	return word, nil
-}
-
-func (m *MemoryStore) Delete(ctx context.Context, id string) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	next := make([]model.Word, 0, len(m.words))
-	found := false
-	for _, w := range m.words {
-		if w.ID == id {
-			found = true
-			continue
-		}
-		next = append(next, w)
-	}
-	if !found {
-		return ErrNotFound
-	}
-	m.words = next
+	m.Batches = append(m.Batches, batch)
 	return nil
 }

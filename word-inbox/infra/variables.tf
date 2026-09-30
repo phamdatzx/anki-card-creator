@@ -28,8 +28,8 @@ variable "lambda_zip_path" {
   default     = "../backend/function.zip"
 }
 
-variable "s3_key" {
-  description = "Object key for the words JSON store"
+variable "s3_prefix" {
+  description = "Key prefix for batch objects (one JSON object per send)"
   type        = string
-  default     = "words.json"
+  default     = "batches/"
 }

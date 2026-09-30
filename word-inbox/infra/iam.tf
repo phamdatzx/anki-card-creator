@@ -20,20 +20,9 @@ resource "aws_iam_role_policy_attachment" "lambda_basic" {
 
 data "aws_iam_policy_document" "lambda_s3" {
   statement {
-    sid = "ListDataBucket"
-    actions = [
-      "s3:ListBucket",
-    ]
-    resources = [aws_s3_bucket.data.arn]
-  }
-
-  statement {
-    sid = "ReadWriteWordsObject"
-    actions = [
-      "s3:GetObject",
-      "s3:PutObject",
-    ]
-    resources = ["${aws_s3_bucket.data.arn}/${var.s3_key}"]
+    sid       = "WriteBatchObjects"
+    actions   = ["s3:PutObject"]
+    resources = ["${aws_s3_bucket.data.arn}/${var.s3_prefix}*"]
   }
 }
 

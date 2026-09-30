@@ -8,13 +8,22 @@ export const WORD_TYPES = [
 
 export type WordType = (typeof WORD_TYPES)[number];
 
-export type Word = {
-  id: string;
+export type WordInput = {
   input: string;
   type: WordType;
-  createdAt: string;
-  syncedAt: string | null;
 };
+
+/** A word waiting in the local queue until the batch is sent. */
+export type PendingWord = WordInput & { key: string };
+
+export type BatchResult = {
+  id: string;
+  createdAt: string;
+  count: number;
+};
+
+/** Must match MaxBatchSize in backend/internal/api/handler.go. */
+export const MAX_BATCH_SIZE = 200;
 
 export const TYPE_LABELS: Record<WordType, string> = {
   normal: "Normal",

@@ -5,7 +5,7 @@ resource "aws_apigatewayv2_api" "http" {
   cors_configuration {
     allow_credentials = false
     allow_headers     = ["Authorization", "Content-Type"]
-    allow_methods     = ["GET", "POST", "DELETE", "OPTIONS"]
+    allow_methods     = ["POST", "OPTIONS"]
     allow_origins     = ["https://${aws_cloudfront_distribution.frontend.domain_name}"]
     max_age           = 86400
   }

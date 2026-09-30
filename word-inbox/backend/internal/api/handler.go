@@ -2,7 +2,8 @@ package api
 
 import (
 	"encoding/json"
-	"errors"
+	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"strings"
@@ -26,9 +27,17 @@ type loginResponse struct {
 	Token string `json:"token"`
 }
 
-type createRequest struct {
-	Input string `json:"input"`
-	Type  string `json:"type"`
+// MaxBatchSize caps how many words one send may contain.
+const MaxBatchSize = 200
+
+type createBatchRequest struct {
+	Words []model.Word `json:"words"`
+}
+
+type createBatchResponse struct {
+	ID        string    `json:"id"`
+	CreatedAt time.Time `json:"createdAt"`
+	Count     int       `json:"count"`
 }
 
 type errorResponse struct {
@@ -50,12 +59,8 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch {
 	case r.Method == http.MethodPost && path == "/login":
 		h.login(w, r)
-	case r.Method == http.MethodGet && path == "/words":
-		h.listWords(w, r)
 	case r.Method == http.MethodPost && path == "/words":
-		h.createWord(w, r)
-	case r.Method == http.MethodDelete && strings.HasPrefix(path, "/words/"):
-		h.deleteWord(w, r, strings.TrimPrefix(path, "/words/"))
+		h.createBatch(w, r)
 	default:
 		writeJSON(w, http.StatusNotFound, errorResponse{Error: "not found"})
 	}
@@ -78,7 +83,7 @@ func (h *Handler) applyCORS(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Vary", "Origin")
 	}
 	w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type")
-	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
 }
 
 func (h *Handler) login(w http.ResponseWriter, r *http.Request) {
@@ -99,76 +104,52 @@ func (h *Handler) login(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, loginResponse{Token: token})
 }
 
-func (h *Handler) listWords(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) createBatch(w http.ResponseWriter, r *http.Request) {
 	if !auth.RequireBearer(r) {
 		writeJSON(w, http.StatusUnauthorized, errorResponse{Error: "unauthorized"})
 		return
 	}
-	words, err := h.Store.List(r.Context())
-	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, errorResponse{Error: err.Error()})
-		return
-	}
-	writeJSON(w, http.StatusOK, map[string]any{"words": words})
-}
-
-func (h *Handler) createWord(w http.ResponseWriter, r *http.Request) {
-	if !auth.RequireBearer(r) {
-		writeJSON(w, http.StatusUnauthorized, errorResponse{Error: "unauthorized"})
-		return
-	}
-	var req createRequest
+	var req createBatchRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeJSON(w, http.StatusBadRequest, errorResponse{Error: "invalid JSON body"})
 		return
 	}
-	input := strings.TrimSpace(req.Input)
-	wordType := strings.TrimSpace(req.Type)
-	if wordType == "" {
-		wordType = model.TypeNormal
-	}
-	if input == "" {
-		writeJSON(w, http.StatusBadRequest, errorResponse{Error: "input is required"})
+	if len(req.Words) == 0 {
+		writeJSON(w, http.StatusBadRequest, errorResponse{Error: "words is required"})
 		return
 	}
-	if !model.ValidType(wordType) {
-		writeJSON(w, http.StatusBadRequest, errorResponse{Error: "invalid type"})
+	if len(req.Words) > MaxBatchSize {
+		writeJSON(w, http.StatusBadRequest, errorResponse{Error: fmt.Sprintf("at most %d words per batch", MaxBatchSize)})
 		return
 	}
-	word := model.Word{
-		ID:        uuid.NewString(),
-		Input:     input,
-		Type:      wordType,
-		CreatedAt: time.Now().UTC(),
-		SyncedAt:  nil,
-	}
-	created, err := h.Store.Create(r.Context(), word)
-	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, errorResponse{Error: err.Error()})
-		return
-	}
-	writeJSON(w, http.StatusCreated, created)
-}
-
-func (h *Handler) deleteWord(w http.ResponseWriter, r *http.Request, id string) {
-	if !auth.RequireBearer(r) {
-		writeJSON(w, http.StatusUnauthorized, errorResponse{Error: "unauthorized"})
-		return
-	}
-	id = strings.TrimSpace(id)
-	if id == "" {
-		writeJSON(w, http.StatusBadRequest, errorResponse{Error: "id is required"})
-		return
-	}
-	if err := h.Store.Delete(r.Context(), id); err != nil {
-		if errors.Is(err, store.ErrNotFound) {
-			writeJSON(w, http.StatusNotFound, errorResponse{Error: "not found"})
+	words := make([]model.Word, 0, len(req.Words))
+	for i, item := range req.Words {
+		input := strings.TrimSpace(item.Input)
+		wordType := strings.TrimSpace(item.Type)
+		if wordType == "" {
+			wordType = model.TypeNormal
+		}
+		if input == "" {
+			writeJSON(w, http.StatusBadRequest, errorResponse{Error: fmt.Sprintf("words[%d]: input is required", i)})
 			return
 		}
+		if !model.ValidType(wordType) {
+			writeJSON(w, http.StatusBadRequest, errorResponse{Error: fmt.Sprintf("words[%d]: invalid type", i)})
+			return
+		}
+		words = append(words, model.Word{Input: input, Type: wordType})
+	}
+	batch := model.Batch{
+		ID:        uuid.NewString(),
+		CreatedAt: time.Now().UTC(),
+		Words:     words,
+	}
+	if err := h.Store.SaveBatch(r.Context(), batch); err != nil {
+		log.Printf("%s %s: %v", r.Method, r.URL.Path, err)
 		writeJSON(w, http.StatusInternalServerError, errorResponse{Error: err.Error()})
 		return
 	}
-	w.WriteHeader(http.StatusNoContent)
+	writeJSON(w, http.StatusCreated, createBatchResponse{ID: batch.ID, CreatedAt: batch.CreatedAt, Count: len(words)})
 }
 
 func writeJSON(w http.ResponseWriter, status int, body any) {

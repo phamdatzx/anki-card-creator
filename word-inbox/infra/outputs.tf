@@ -14,7 +14,7 @@ output "cloudfront_distribution_id" {
 }
 
 output "data_bucket" {
-  description = "S3 bucket storing words.json"
+  description = "S3 bucket storing word batches (batches/*.json)"
   value       = aws_s3_bucket.data.bucket
 }
 

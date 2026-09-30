@@ -1,7 +1,8 @@
 # Word Inbox
 
-Personal vocabulary capture app: note `{ input, type }` items behind a shared
-password, store them on S3 via a Go Lambda API. Anki sync is a later phase.
+Personal vocabulary capture app behind a shared password. Queue many
+`{ input, type }` words in the SPA, click **Send**, and the Go Lambda API stores
+the whole batch as one S3 object. Anki sync (reading the batches) is a later phase.
 
 ```
 word-inbox/
@@ -28,32 +29,32 @@ docker compose up -d
 Data persists in the `s3-data` volume (`docker compose down -v` wipes it).
 To change the bucket name or host port, copy `.env.docker.example` to `.env`
 in `word-inbox/`. If you do, export the same `S3_BUCKET` / `S3_PORT` before
-running `make run-s3`.
+running `make run-local`.
 
 Inspect the stored data:
 
 ```bash
-docker compose exec s3 awslocal s3 ls s3://word-inbox-local/
+docker compose exec s3 awslocal s3 ls s3://word-inbox-local/batches/
 ```
 
 ### 2. Backend (Go on the host)
 
 ```bash
 cd word-inbox/backend
-make run-s3      # uses the local S3 above
+make run-local    # uses the local S3 above
 # or
-make run-local   # in-memory store, no Docker needed
-# listens on :8080; defaults: APP_PASSWORD=dev-password, APP_TOKEN=dev-token
+make run-memory   # in-memory store, no Docker needed (batches lost on exit)
+# listens on :8088; defaults: APP_PASSWORD=dev-password, APP_TOKEN=dev-token
 ```
 
 `cmd/local` uses the S3 store when `S3_BUCKET` is set (`S3_ENDPOINT`
-overrides the AWS endpoint), otherwise the in-memory store.
+overrides the AWS endpoint for LocalStack), otherwise the in-memory store.
 
 ### 3. Frontend (always on the host)
 
 ```bash
 cd word-inbox/frontend
-cp .env.example .env.development   # already points at http://localhost:8080
+cp .env.example .env.development   # already points at http://localhost:8088
 npm install
 npm run dev
 ```
@@ -65,23 +66,29 @@ Open http://localhost:5173 and sign in with `dev-password`.
 | Method | Path | Auth | Body |
 | --- | --- | --- | --- |
 | `POST` | `/login` | no | `{ "password": "..." }` → `{ "token": "..." }` |
-| `GET` | `/words` | Bearer | → `{ "words": [...] }` |
-| `POST` | `/words` | Bearer | `{ "input": "...", "type": "normal" }` |
-| `DELETE` | `/words/{id}` | Bearer | — |
+| `POST` | `/words` | Bearer | `{ "words": [{ "input": "...", "type": "normal" }, ...] }` → `201 { "id", "createdAt", "count" }` |
 
-Allowed `type` values: `normal`, `word_form`, `word_pattern`, `sentence`, `vietnamese`.
+A batch holds 1–200 words. `type` defaults to `normal`; allowed values:
+`normal`, `word_form`, `word_pattern`, `sentence`, `vietnamese`. The whole
+batch is rejected (400) if any word is invalid.
 
-Each stored word:
+Each send is written to its own object,
+`batches/<createdAt UTC, YYYYMMDDTHHMMSSZ>-<id>.json` (prefix set by `S3_PREFIX`),
+so keys sort chronologically and writes never conflict:
 
 ```json
 {
   "id": "uuid",
-  "input": "test",
-  "type": "normal",
-  "createdAt": "2026-09-28T06:00:00Z",
-  "syncedAt": null
+  "createdAt": "2026-09-30T06:36:27Z",
+  "words": [
+    { "input": "neatly", "type": "word_form" },
+    { "input": "make a decision", "type": "word_pattern" }
+  ]
 }
 ```
+
+The unsent queue lives in the browser (`localStorage`) until **Send** succeeds.
+There is no list/delete API; the Lambda role can only `PutObject` under the prefix.
 
 ## Backend tests / Lambda zip
 

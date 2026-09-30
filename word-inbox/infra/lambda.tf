@@ -24,7 +24,7 @@ resource "aws_lambda_function" "api" {
       APP_PASSWORD = var.app_password
       APP_TOKEN    = var.app_token
       S3_BUCKET    = aws_s3_bucket.data.bucket
-      S3_KEY       = var.s3_key
+      S3_PREFIX    = var.s3_prefix
       CORS_ORIGIN  = "https://${aws_cloudfront_distribution.frontend.domain_name}"
     }
   }

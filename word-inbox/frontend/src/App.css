@@ -176,3 +176,24 @@ button:disabled {
   color: var(--ink);
   font-weight: 600;
 }
+
+select.badge {
+  border: 0;
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.notice {
+  color: var(--accent);
+  margin: 0.75rem 0 0;
+  font-weight: 600;
+}
+
+button.send {
+  width: 100%;
+  margin-top: 0.75rem;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 650;
+}

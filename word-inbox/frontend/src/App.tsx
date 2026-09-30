@@ -1,55 +1,43 @@
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
+import { ApiError, clearToken, getToken, login, sendBatch } from "./api";
 import {
-  ApiError,
-  clearToken,
-  createWord,
-  deleteWord,
-  getToken,
-  listWords,
-  login,
-} from "./api";
-import { TYPE_LABELS, WORD_TYPES, type Word, type WordType } from "./types";
+  MAX_BATCH_SIZE,
+  TYPE_LABELS,
+  WORD_TYPES,
+  type PendingWord,
+  type WordType,
+} from "./types";
 import "./App.css";
 
-function formatTime(iso: string): string {
+const QUEUE_KEY = "word-inbox-queue";
+
+function loadQueue(): PendingWord[] {
   try {
-    return new Date(iso).toLocaleString();
+    const raw = localStorage.getItem(QUEUE_KEY);
+    const parsed: unknown = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? (parsed as PendingWord[]) : [];
   } catch {
-    return iso;
+    return [];
   }
 }
 
 export default function App() {
   const [token, setTokenState] = useState<string | null>(() => getToken());
   const [password, setPassword] = useState("");
-  const [words, setWords] = useState<Word[]>([]);
+  const [queue, setQueue] = useState<PendingWord[]>(loadQueue);
   const [input, setInput] = useState("");
   const [type, setType] = useState<WordType>("normal");
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
-  const [loadingList, setLoadingList] = useState(false);
-
-  const refresh = useCallback(async () => {
-    setLoadingList(true);
-    setError("");
-    try {
-      setWords(await listWords());
-    } catch (err) {
-      if (err instanceof ApiError && err.status === 401) {
-        clearToken();
-        setTokenState(null);
-      }
-      setError(err instanceof Error ? err.message : "Failed to load words");
-    } finally {
-      setLoadingList(false);
-    }
-  }, []);
 
   useEffect(() => {
-    if (token) {
-      void refresh();
+    try {
+      localStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
+    } catch {
+      // Storage unavailable; the queue still works for this session.
     }
-  }, [token, refresh]);
+  }, [queue]);
 
   async function onLogin(event: React.FormEvent) {
     event.preventDefault();
@@ -66,34 +54,54 @@ export default function App() {
     }
   }
 
-  async function onAdd(event: React.FormEvent) {
+  function onAdd(event: React.FormEvent) {
     event.preventDefault();
     const cleaned = input.trim();
     if (!cleaned) {
-      setError("Enter a word or phrase");
+      return;
+    }
+    if (queue.length >= MAX_BATCH_SIZE) {
+      setError(`At most ${MAX_BATCH_SIZE} words per batch — send first.`);
+      return;
+    }
+    setQueue((prev) => [
+      ...prev,
+      { key: crypto.randomUUID(), input: cleaned, type },
+    ]);
+    setInput("");
+    setError("");
+    setNotice("");
+  }
+
+  function onRemove(key: string) {
+    setQueue((prev) => prev.filter((item) => item.key !== key));
+  }
+
+  function onChangeType(key: string, next: WordType) {
+    setQueue((prev) =>
+      prev.map((item) => (item.key === key ? { ...item, type: next } : item)),
+    );
+  }
+
+  async function onSend() {
+    if (queue.length === 0) {
       return;
     }
     setBusy(true);
     setError("");
+    setNotice("");
     try {
-      await createWord(cleaned, type);
-      setInput("");
-      await refresh();
+      const result = await sendBatch(
+        queue.map(({ input, type }) => ({ input, type })),
+      );
+      setQueue([]);
+      setNotice(`Sent ${result.count} word${result.count === 1 ? "" : "s"}.`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not add word");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function onDelete(id: string) {
-    setBusy(true);
-    setError("");
-    try {
-      await deleteWord(id);
-      await refresh();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not delete");
+      if (err instanceof ApiError && err.status === 401) {
+        clearToken();
+        setTokenState(null);
+      }
+      setError(err instanceof Error ? err.message : "Could not send batch");
     } finally {
       setBusy(false);
     }
@@ -102,8 +110,8 @@ export default function App() {
   function onLogout() {
     clearToken();
     setTokenState(null);
-    setWords([]);
     setError("");
+    setNotice("");
   }
 
   if (!token) {
@@ -152,7 +160,7 @@ export default function App() {
           <input
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Word, phrase, or sentence…"
+            placeholder="Word, phrase, or sentence… (Enter to add)"
             autoFocus
             disabled={busy}
           />
@@ -173,51 +181,74 @@ export default function App() {
             ))}
           </div>
         </label>
-        {error ? <p className="error">{error}</p> : null}
         <button type="submit" disabled={busy || !input.trim()}>
-          {busy ? "Saving…" : "Add note"}
+          Add to batch
         </button>
       </form>
 
       <section className="card list">
         <div className="row list-head">
-          <h2>Inbox</h2>
+          <h2>
+            Batch <span className="muted">({queue.length})</span>
+          </h2>
           <button
             type="button"
             className="ghost"
-            onClick={() => void refresh()}
-            disabled={loadingList || busy}
+            onClick={() => setQueue([])}
+            disabled={busy || queue.length === 0}
           >
-            Refresh
+            Clear
           </button>
         </div>
-        {loadingList && words.length === 0 ? (
-          <p className="muted">Loading…</p>
-        ) : null}
-        {!loadingList && words.length === 0 ? (
-          <p className="muted">No notes yet. Add one above.</p>
+        {queue.length === 0 ? (
+          <p className="muted">Nothing queued. Add words above, then send.</p>
         ) : null}
         <ul>
-          {words.map((word) => (
-            <li key={word.id} className="item">
+          {queue.map((item) => (
+            <li key={item.key} className="item">
               <div className="item-main">
-                <div className="item-input">{word.input}</div>
+                <div className="item-input">{item.input}</div>
                 <div className="item-meta">
-                  <span className="badge">{TYPE_LABELS[word.type] ?? word.type}</span>
-                  <span>{formatTime(word.createdAt)}</span>
+                  <select
+                    className="badge"
+                    value={item.type}
+                    onChange={(e) =>
+                      onChangeType(item.key, e.target.value as WordType)
+                    }
+                    disabled={busy}
+                    aria-label={`Type for ${item.input}`}
+                  >
+                    {WORD_TYPES.map((value) => (
+                      <option key={value} value={value}>
+                        {TYPE_LABELS[value]}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
               <button
                 type="button"
                 className="danger"
-                onClick={() => void onDelete(word.id)}
+                onClick={() => onRemove(item.key)}
                 disabled={busy}
               >
-                Delete
+                Remove
               </button>
             </li>
           ))}
         </ul>
+        {error ? <p className="error">{error}</p> : null}
+        {notice ? <p className="notice">{notice}</p> : null}
+        <button
+          type="button"
+          className="send"
+          onClick={() => void onSend()}
+          disabled={busy || queue.length === 0}
+        >
+          {busy
+            ? "Sending…"
+            : `Send ${queue.length || ""} word${queue.length === 1 ? "" : "s"}`}
+        </button>
       </section>
     </div>
   );

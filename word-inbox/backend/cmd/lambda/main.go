@@ -17,5 +17,5 @@ func main() {
 		log.Fatalf("store: %v", err)
 	}
 	handler := &api.Handler{Store: s3Store}
-	lambda.Start(httpadapter.NewV2(handler).ProxyWithContext)
+	lambda.Start(httpadapter.NewV2(api.WithLogging(handler)).ProxyWithContext)
 }

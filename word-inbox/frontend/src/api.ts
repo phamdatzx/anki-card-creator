@@ -1,9 +1,9 @@
-import type { Word, WordType } from "./types";
+import type { BatchResult, WordInput } from "./types";
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(
   /\/$/,
   "",
-) || "http://localhost:8080";
+) || "http://localhost:8088";
 
 const TOKEN_KEY = "word-inbox-token";
 
@@ -79,23 +79,11 @@ export async function login(password: string): Promise<string> {
   return data.token;
 }
 
-export async function listWords(): Promise<Word[]> {
-  const data = await request<{ words: Word[] }>("/words");
-  return data.words ?? [];
-}
-
-export async function createWord(
-  input: string,
-  type: WordType,
-): Promise<Word> {
-  return request<Word>("/words", {
+export async function sendBatch(words: WordInput[]): Promise<BatchResult> {
+  return request<BatchResult>("/words", {
     method: "POST",
-    body: JSON.stringify({ input, type }),
+    body: JSON.stringify({ words }),
   });
-}
-
-export async function deleteWord(id: string): Promise<void> {
-  await request<void>(`/words/${id}`, { method: "DELETE" });
 }
 
 export { ApiError };

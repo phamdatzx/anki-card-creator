@@ -7,4 +7,4 @@ app_token    = "change-me-long-random-token"
 
 # Optional overrides
 # lambda_zip_path = "../backend/function.zip"
-# s3_key          = "words.json"
+# s3_prefix       = "batches/"
