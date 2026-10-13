@@ -3,7 +3,8 @@
 ## Project
 
 This repository is an Anki add-on for creating vocabulary cards. It supports
-Normal, Word form, Word pattern, and Sentence card types through an OpenAI-compatible
+Normal, Word form, Word pattern, Sentence, and Vietnamese → English card types
+through an OpenAI-compatible
 structured-output API. Normal accepts either a word or a phrasal verb.
 
 The add-on runs inside Anki and relies on Anki-bundled `anki` and `aqt`
@@ -26,6 +27,7 @@ anki_card_creator/
   config.json       # Default configuration; no secrets
   manifest.json     # Add-on metadata
 tests/               # pure unit tests
+word-inbox/          # web app (FastAPI + React) reusing the pure modules; see its README
 pyproject.toml       # pytest/Ruff development configuration
 package.sh      # Builds the .ankiaddon archive
 README.md       # User and development documentation
@@ -93,6 +95,16 @@ For UI and Anki integration changes, install via a symlink or add-on package,
 configure API keys through Anki's add-on config, and fully restart Anki before
 testing. The package script recursively includes subpackages and excludes local
 `meta.json` and `__pycache__` paths.
+
+## Word Inbox
+
+`word-inbox/server/word_inbox/` imports the add-on's pure modules and writes
+notes into a headless collection opened with the `anki` pip package, then
+syncs it with AnkiWeb. It never does a full upload. Its third-party
+dependencies are pinned in `word-inbox/server/requirements.txt` and must not
+leak into `anki_card_creator/`. Changing a lookup, contract, or note writer
+changes both apps, so run the server tests and `npm run build` in
+`word-inbox/frontend`.
 
 ## Scope discipline
 

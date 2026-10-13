@@ -1,0 +1,163 @@
+name: Deploy Word Inbox
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - anki_card_creator/**
+      - word-inbox/**
+      - .github/workflows/deploy.yml
+      - .github/workflows/ci.yml
+  workflow_dispatch:
+
+# One deploy at a time; a newer push waits instead of cancelling a live one.
+concurrency:
+  group: deploy-word-inbox
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  IMAGE: ghcr.io/${{ github.repository_owner }}/word-inbox
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+
+  image:
+    name: Build and push image
+    needs: ci
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      ref: ${{ steps.ref.outputs.ref }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: ref
+        # GHCR names must be lower case; the commit tag pins exactly what runs.
+        run: |
+          echo "ref=${IMAGE,,}:${GITHUB_SHA::12}" >> "$GITHUB_OUTPUT"
+          echo "latest=${IMAGE,,}:latest" >> "$GITHUB_OUTPUT"
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: word-inbox/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ steps.ref.outputs.ref }}
+            ${{ steps.ref.outputs.latest }}
+          # Links the GHCR package to this repo, so the deploy job's token can pull it.
+          labels: org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    name: Deploy to VPS
+    needs: image
+    runs-on: ubuntu-24.04
+    environment: production
+    permissions:
+      contents: read
+      packages: read
+    env:
+      IMAGE_REF: ${{ needs.image.outputs.ref }}
+      SSH_HOST: ${{ secrets.VPS_HOST }}
+      SSH_USER: ${{ secrets.VPS_USER }}
+      SSH_PORT: ${{ secrets.VPS_PORT || '22' }}
+      DEPLOY_PATH: ${{ secrets.VPS_DEPLOY_PATH || 'word-inbox' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.VPS_SSH_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+        run: |
+          missing=0
+          for pair in VPS_SSH_KEY=SSH_PRIVATE_KEY VPS_HOST=SSH_HOST VPS_USER=SSH_USER; do
+            variable=${pair#*=}
+            if [ -z "${!variable}" ]; then
+              echo "::error::Secret ${pair%%=*} is not set."
+              missing=1
+            fi
+          done
+          [ "$missing" = 0 ] || exit 1
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          if [ -n "$SSH_KNOWN_HOSTS" ]; then
+            printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          else
+            echo "::warning::VPS_KNOWN_HOSTS is not set; trusting the host key seen now."
+            ssh-keyscan -p "$SSH_PORT" "$SSH_HOST" > ~/.ssh/known_hosts
+          fi
+          cat > ~/.ssh/config <<EOF
+          Host vps
+            HostName $SSH_HOST
+            User $SSH_USER
+            Port $SSH_PORT
+            IdentityFile ~/.ssh/id_deploy
+            IdentitiesOnly yes
+            StrictHostKeyChecking yes
+            ServerAliveInterval 30
+          EOF
+
+      - name: Upload compose file
+        run: |
+          sed "s|__IMAGE__|$IMAGE_REF|" word-inbox/deploy/docker-compose.yml > docker-compose.yml
+          # shellcheck disable=SC2029 # expand the path here, on purpose
+          ssh vps "mkdir -p '$DEPLOY_PATH/data'"
+          scp docker-compose.yml "vps:$DEPLOY_PATH/docker-compose.yml"
+
+      - name: Pull and restart
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GHCR_USER: ${{ github.actor }}
+        run: |
+          # The job token only lives for this run, so log in, pull, log out.
+          # shellcheck disable=SC2029 # expand the user here, on purpose
+          ssh vps "docker login ghcr.io -u '$GHCR_USER' --password-stdin" <<< "$GHCR_TOKEN"
+          ssh vps bash -s -- "$DEPLOY_PATH" <<'REMOTE'
+          set -euo pipefail
+          cd "$1"
+          trap 'docker logout ghcr.io >/dev/null' EXIT
+          if [ ! -f .env ]; then
+            echo "::error::$PWD/.env is missing; copy word-inbox/.env.example there first."
+            exit 1
+          fi
+          docker compose pull
+          docker compose up -d --remove-orphans
+          docker image prune -f >/dev/null
+          REMOTE
+
+      - name: Wait for health check
+        run: |
+          ssh vps bash -s -- "$DEPLOY_PATH" <<'REMOTE'
+          cd "$1"
+          for attempt in $(seq 30); do
+            if docker compose exec -T app python -c \
+              "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8088/api/health', timeout=3)" \
+              2>/dev/null; then
+              echo "Word Inbox is up."
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "::error::Word Inbox did not become healthy; recent logs:"
+          docker compose logs --tail 80 app
+          exit 1
+          REMOTE
+
+      - name: Remove SSH key
+        if: always()
+        run: rm -rf ~/.ssh

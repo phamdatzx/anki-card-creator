@@ -13,7 +13,10 @@ ruff check .                                       # lint (py310 target)
 python3 -m compileall -q anki_card_creator
 ./package.sh                                       # builds anki-card-creator.ankiaddon (excludes meta.json, __pycache__)
 git diff --check
+(cd word-inbox/frontend && npm run build && npm run lint)   # when touching word-inbox
 ```
+
+`python3 -m pytest` also runs `word-inbox/server/tests` when the server's dependencies are installed (`pip install -r word-inbox/server/requirements-dev.txt`). Without them it skips those tests.
 
 Run all of the above before you consider a change done.
 
@@ -28,12 +31,14 @@ Flow: `__init__.py` → `bootstrap.py` (deck-overview button and Tools menu) →
 - **Transport (`openai_client.py`):** synchronous `urllib` code for chat and TTS with no third-party dependencies. `verify_ssl` defaults to `false` on purpose, because Anki's bundled OpenSSL often fails CA checks.
 - **Notes (`notes/`):** each writer module defines `NOTE_TYPE_NAME`, `FIELDS`, `CARD_FRONT`, and `CARD_BACK`. `notes/shared.py` holds the shared CSS and HTML helpers. `notes/registry.py` (`ensure_all_note_types`) creates the note types or updates them in place, which adds missing fields and overwrites templates and CSS each time the dialog opens. Vietnamese → English has no note type of its own: it reuses Normal's `VIP Translate` note type and writer.
 - **Audio (`audio.py`):** TTS runs only when you click **Create cards**, never during lookup. Clips are deduplicated using keys from `audio_keys.py`.
-- **UI (`ui/dialog.py`):** the `LookupDialog` switches on `CardType`. Lookups run synchronously on the UI thread. The dialog fills a panel per type, the editors in `ui/editors.py` let you edit results, and `_create_cards` validates and writes the notes to the current deck.
+- **UI (`ui/dialog.py`):** the `LookupDialog` switches on `CardType`. Lookups run synchronously on the UI thread. The dialog fills a panel per type, the editors in `ui/editors.py` let you edit results, and `_create_cards` validates with `create_checks.py` and writes the notes to the current deck.
+- **CI/CD (`.github/workflows/`):** `ci.yml` runs on pull requests (Ruff, pytest, packaging, frontend build and lint). `deploy.yml` reuses it on pushes to `main`, builds `word-inbox/Dockerfile` into GHCR, and deploys over SSH to a VPS using `word-inbox/deploy/docker-compose.yml`. Keep `requirements-dev.txt` and the workflows in sync with the commands above.
+- **Word Inbox (`word-inbox/`):** a single-user web version. `server/word_inbox/` is a FastAPI app that imports the add-on's pure modules (lookups, `audio.py`, `notes/*`, `create_checks.py`) and runs them against a headless collection from the `anki` pip package (`anki_store.py`), syncing with AnkiWeb. It never does a full upload, and it only does a full download when no unsynced server notes would be lost. `frontend/` is a React/Vite page whose panels mirror the dialog. Changes to the add-on's pure modules affect both, so keep the server tests passing.
 
 ## Constraints
 
 - Keep the note type names `VIP Translate`, `VIP Word Form`, `VIP Word Pattern`, and `VIP Sentence`, since existing collections depend on them. Keep fields and templates backward-compatible, because the registry changes existing models in place.
-- Don't add third-party runtime dependencies.
+- Don't add third-party runtime dependencies to the add-on. Word Inbox's server-only dependencies go in `word-inbox/server/requirements.txt`, pinned.
 - Follow the existing style: `from __future__ import annotations`, prefix internal helpers with `_`, use `# noqa: N802` on Qt overrides, and catch broad exceptions only at UI boundaries.
 - To add a new card type, touch every layer: add a schema, a contract, and a `lookups/` module; add a `notes/` writer and register it in `registry.py`; add a panel and wiring in `ui/dialog.py`; then update `README.md`.
-- Update `README.md` whenever user-visible behavior or config changes.
+- Update `README.md` whenever user-visible behavior or config changes, and `word-inbox/README.md` for the web app. A new card type also needs a Word Inbox panel (`frontend/src/`) and a branch in `server/word_inbox/cards.py`.

@@ -29,6 +29,14 @@ from aqt.utils import qconnect, showWarning, tooltip
 
 from ..audio import definition_audio_tags, word_form_audio
 from ..config import AddonConfig, chat_kwargs, normalize_config
+from ..create_checks import (
+    definition_problems,
+    problems_message,
+    sentence_problems,
+    vietnamese_problems,
+    word_form_problems,
+    word_pattern_problems,
+)
 from ..lookups.contracts import (
     DefinitionResult,
     NormalPayload,
@@ -565,69 +573,22 @@ class LookupDialog(QDialog):
         deck_id = current_deck_id()
         if self._card_type() is CardType.NORMAL:
             selected = self._selected_definitions()
-            if not selected:
-                showWarning("Select at least one definition.", parent=self)
-                return
+            problems = definition_problems(selected)
         elif self._card_type() is CardType.WORD_FORM:
             payload = self._form_data()
-            if not payload["rootWord"]["word"] or not payload["other"]:
-                showWarning("Root word and one related form are required.", parent=self)
-                return
-            missing = []
-            root = payload["rootWord"]
-            if (
-                not root["definition"]
-                or not root["vietnamese"]
-                or not root["examples"]
-            ):
-                missing.append("root word")
-            missing.extend(
-                f'{item["word"]} ({item["type"]})'
-                for item in payload["other"]
-                if (
-                    not item["definition"].strip()
-                    or not item["vietnamese"].strip()
-                    or not item["examples"]
-                )
-            )
-            if missing:
-                showWarning(
-                    "Each word form needs Vietnamese meaning, a definition, "
-                    "and at least one example:\n"
-                    + "\n".join(f"• {label}" for label in missing),
-                    parent=self,
-                )
-                return
+            problems = word_form_problems(payload)
         elif self._card_type() is CardType.WORD_PATTERN:
             payload = self._pattern_data()
-            if not payload["gap"] or not payload["answer"]:
-                showWarning("Gap and answer are required.", parent=self)
-                return
+            problems = word_pattern_problems(payload)
         elif self._card_type() is CardType.VIETNAMESE:
             selected_vi = self._selected_vietnamese_results()
-            if not selected_vi:
-                showWarning("Select at least one English word.", parent=self)
-                return
-            missing = [
-                f'result {index + 1}'
-                for index, result in enumerate(selected_vi)
-                if not str(result.get("word") or "").strip()
-            ]
-            if missing:
-                showWarning(
-                    "Each selected result needs a word:\n"
-                    + "\n".join(f"• {label}" for label in missing),
-                    parent=self,
-                )
-                return
+            problems = vietnamese_problems(selected_vi)
         else:
             vietnamese, sentence = self._sentence_data()
-            if not vietnamese or not sentence:
-                showWarning(
-                    "Vietnamese meaning and English sentence are required.",
-                    parent=self,
-                )
-                return
+            problems = sentence_problems(vietnamese, sentence)
+        if problems:
+            showWarning(problems_message(problems), parent=self)
+            return
         self._busy(True)
         try:
             if self._card_type() is CardType.NORMAL:

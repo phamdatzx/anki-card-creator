@@ -1,4 +1,6 @@
-export const WORD_TYPES = [
+/** Mirrors anki_card_creator/lookups/contracts.py. */
+
+export const CARD_TYPES = [
   "normal",
   "word_form",
   "word_pattern",
@@ -6,29 +8,92 @@ export const WORD_TYPES = [
   "vietnamese",
 ] as const;
 
-export type WordType = (typeof WORD_TYPES)[number];
+export type CardType = (typeof CARD_TYPES)[number];
 
-export type WordInput = {
-  input: string;
-  type: WordType;
-};
-
-/** A word waiting in the local queue until the batch is sent. */
-export type PendingWord = WordInput & { key: string };
-
-export type BatchResult = {
-  id: string;
-  createdAt: string;
-  count: number;
-};
-
-/** Must match MaxBatchSize in backend/internal/api/handler.go. */
-export const MAX_BATCH_SIZE = 200;
-
-export const TYPE_LABELS: Record<WordType, string> = {
+export const TYPE_LABELS: Record<CardType, string> = {
   normal: "Normal",
   word_form: "Word form",
   word_pattern: "Word pattern",
   sentence: "Sentence",
   vietnamese: "Vietnamese → English",
 };
+
+export const PLACEHOLDERS: Record<CardType, string> = {
+  normal: "Enter a word or phrasal verb…",
+  word_form: "Enter a word (any form)…",
+  word_pattern: "Enter a pattern (e.g. make a decision)…",
+  sentence: "Enter an English sentence…",
+  vietnamese: "Enter a Vietnamese word or meaning (e.g. quyết định)…",
+};
+
+export const HINTS: Record<CardType, string> = {
+  normal: "Normal: look up senses and select definitions.",
+  word_form: "Word form: find a root and related forms.",
+  word_pattern: "Word pattern: create a contextual gap fill.",
+  sentence: "Sentence: translate an English sentence into Vietnamese.",
+  vietnamese:
+    "Vietnamese → English: find matching English words for a Vietnamese meaning.",
+};
+
+export type Score = number | null;
+
+export type DefinitionResult = {
+  definition: string;
+  vietnamese: string;
+  partOfSpeech: string;
+  ipa: string;
+  synonyms: string[];
+  examples: string[];
+  popularity: Score;
+  difficulty: Score;
+};
+
+export type VietnameseResult = DefinitionResult & { word: string };
+
+export type NormalPayload = { word: string; results: DefinitionResult[] };
+
+export type VietnamesePayload = { query: string; results: VietnameseResult[] };
+
+export type WordFormItem = {
+  word: string;
+  type: string;
+  definition: string;
+  vietnamese: string;
+  examples: string[];
+  ipa: string;
+  popularity: Score;
+  difficulty: Score;
+};
+
+export type WordFormPayload = { rootWord: WordFormItem; other: WordFormItem[] };
+
+export type WordPatternPayload = {
+  gap: string;
+  vietnamese: string;
+  answer: string;
+  pattern: string;
+  explanation: string;
+  examples: string[];
+};
+
+/** The server adds the looked-up English sentence to the translation. */
+export type SentencePayload = { vietnamese: string; sentence: string };
+
+export type LookupResponse =
+  | { type: "normal"; payload: NormalPayload }
+  | { type: "vietnamese"; payload: VietnamesePayload }
+  | { type: "word_form"; payload: WordFormPayload }
+  | { type: "word_pattern"; payload: WordPatternPayload }
+  | { type: "sentence"; payload: SentencePayload };
+
+export type Deck = { id: number; name: string };
+
+export type SyncState = {
+  enabled: boolean;
+  at: number | null;
+  ok: boolean | null;
+  message: string;
+  needs_forced_download: boolean;
+};
+
+export type CreateResponse = { added: number; deck: string; sync: SyncState };

@@ -1,0 +1,10 @@
+**/node_modules
+**/dist
+**/__pycache__
+**/.pytest_cache
+**/.ruff_cache
+**/meta.json
+.git
+word-inbox/data
+word-inbox/.env
+*.ankiaddon

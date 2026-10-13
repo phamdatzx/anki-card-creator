@@ -1,0 +1,15 @@
+# Production compose file. The deploy workflow fills in the image tag and
+# copies this to the VPS as <VPS_DEPLOY_PATH>/docker-compose.yml, next to the
+# hand-made .env and the data/ folder. Don't run it from the repo.
+services:
+  app:
+    image: __IMAGE__
+    env_file: .env
+    ports:
+      # Bound to localhost: put a TLS reverse proxy (Caddy, nginx) in front.
+      - "127.0.0.1:${PORT:-8088}:8088"
+    volumes:
+      # collection.anki2, its media, the cached AnkiWeb key, the app secret.
+      - ./data:/data
+    restart: unless-stopped
+    stop_grace_period: 30s
