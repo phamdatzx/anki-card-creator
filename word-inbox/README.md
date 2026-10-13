@@ -21,7 +21,8 @@ word-inbox/
   server/      FastAPI app (word_inbox/) and its tests
   frontend/    Vite + React + TypeScript page
   Dockerfile   one image: built page + API
-  docker-compose.yml
+  docker-compose.yml          build and run locally or by hand
+  deploy/docker-compose.yml   what the deploy workflow puts on the VPS
   .env.example every setting
 ```
 
@@ -45,6 +46,90 @@ inbox.example.com {
 Everything the server keeps lives in `word-inbox/data/`: `collection.anki2`
 and its media, `sync_auth.json` (the AnkiWeb sync key), and `app_secret`.
 Back that folder up.
+
+## Deploy to a VPS with GitHub Actions
+
+Two workflows live in `.github/workflows/`:
+
+- **`ci.yml`** runs on every pull request: Ruff, pytest (add-on and server),
+  packaging of the add-on, and the frontend build and lint.
+- **`deploy.yml`** runs on every push to `main` that touches
+  `anki_card_creator/`, `word-inbox/`, or the workflows. You can also start it
+  by hand under **Actions → Deploy Word Inbox → Run workflow**. It runs CI,
+  builds the image, pushes it to GHCR as `ghcr.io/<owner>/word-inbox:<commit>`
+  (and `:latest`), then connects to the VPS over SSH. There it pulls that exact
+  tag, restarts the container, and waits for `/api/health`.
+
+The deploy only replaces the container. Your `.env` and `data/` folder on the
+VPS are never touched.
+
+### One-time VPS setup
+
+1. Install Docker Engine with the Compose plugin (`docker compose version`
+   must work), and create a deploy user that can run Docker:
+
+   ```bash
+   sudo adduser --disabled-password deploy
+   sudo usermod -aG docker deploy
+   ```
+
+2. Create a key pair just for deploys, on your own machine:
+
+   ```bash
+   ssh-keygen -t ed25519 -N "" -C "word-inbox deploy" -f word-inbox-deploy
+   ```
+
+   Append `word-inbox-deploy.pub` to `/home/deploy/.ssh/authorized_keys` on
+   the VPS.
+
+3. As `deploy`, create the app folder and its settings. The workflow
+   refuses to deploy without `.env`:
+
+   ```bash
+   mkdir -p ~/word-inbox/data
+   nano ~/word-inbox/.env    # contents: see .env.example
+   chmod 600 ~/word-inbox/.env
+   ```
+
+4. Put a TLS reverse proxy in front of `127.0.0.1:8088` (see the Caddy
+   example above).
+
+### GitHub secrets
+
+Add these under **Settings → Secrets and variables → Actions → Repository
+secrets**. You can also put them on the `production` environment, which lets
+you require an approval before each deploy.
+
+| Secret | Required | Value |
+| --- | --- | --- |
+| `VPS_SSH_KEY` | yes | The private key, i.e. the whole contents of `word-inbox-deploy` |
+| `VPS_HOST` | yes | VPS IP or host name |
+| `VPS_USER` | yes | `deploy` |
+| `VPS_PORT` | no | SSH port, default `22` |
+| `VPS_DEPLOY_PATH` | no | App folder, default `word-inbox` (relative to the user's home, or absolute) |
+| `VPS_KNOWN_HOSTS` | recommended | Output of `ssh-keyscan -p <port> <host>`, checked from a machine you trust. Without it, each run trusts whatever host key it sees. |
+
+No registry password is needed. The workflow pushes and pulls with the run's
+own short-lived `GITHUB_TOKEN`, logs the VPS in for the pull only, and logs
+it out again.
+
+### Operating it
+
+On the VPS, in `~/word-inbox`:
+
+```bash
+docker compose ps
+docker compose logs -f app
+docker compose restart app     # e.g. after editing .env
+```
+
+To roll back, open an older successful **Deploy Word Inbox** run and click
+**Re-run all jobs**. That rebuilds that commit's image and deploys it. You can
+also set `image:` in the VPS's `docker-compose.yml` to an older
+`:<commit>` tag and run `docker compose up -d`.
+
+The image is built for `linux/amd64` only, the platform the `anki` wheel
+targets in this setup.
 
 ## AnkiWeb sync: first run and safety
 
