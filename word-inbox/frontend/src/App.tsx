@@ -1,255 +1,453 @@
-import { useEffect, useState } from "react";
-import { ApiError, clearToken, getToken, login, sendBatch } from "./api";
+import { useCallback, useEffect, useRef, useState } from "react";
+import * as api from "./api";
+import { FieldsForm } from "./editors";
 import {
-  MAX_BATCH_SIZE,
+  PATTERN_FIELDS,
+  SENTENCE_FIELDS,
+  picked,
+  wordFormDraft,
+  wordFormFromDraft,
+  type Draft,
+  type Picked,
+} from "./forms";
+import { DefinitionList, VietnameseList, WordFormPanel } from "./panels";
+import { asText, splitList } from "./text";
+import {
+  CARD_TYPES,
+  HINTS,
+  PLACEHOLDERS,
   TYPE_LABELS,
-  WORD_TYPES,
-  type PendingWord,
-  type WordType,
+  type CardType,
+  type DefinitionResult,
+  type Deck,
+  type LookupResponse,
+  type SyncState,
+  type VietnameseResult,
+  type WordFormItem,
 } from "./types";
 import "./App.css";
 
-const QUEUE_KEY = "word-inbox-queue";
+type Result =
+  | { type: "normal"; word: string; items: Picked<DefinitionResult>[] }
+  | { type: "vietnamese"; query: string; items: Picked<VietnameseResult>[] }
+  | { type: "word_form"; base: WordFormItem; root: Draft; others: Picked<WordFormItem>[] }
+  | { type: "word_pattern"; draft: Draft }
+  | { type: "sentence"; draft: Draft };
 
-function loadQueue(): PendingWord[] {
+type Status = { text: string; tone: "info" | "error" | "success" };
+
+const DECK_KEY = "word-inbox-deck";
+
+function savedDeckId(): number | null {
   try {
-    const raw = localStorage.getItem(QUEUE_KEY);
-    const parsed: unknown = raw ? JSON.parse(raw) : [];
-    return Array.isArray(parsed) ? (parsed as PendingWord[]) : [];
+    const value = Number(localStorage.getItem(DECK_KEY));
+    return Number.isInteger(value) && value > 0 ? value : null;
   } catch {
-    return [];
+    return null;
   }
 }
 
-export default function App() {
-  const [token, setTokenState] = useState<string | null>(() => getToken());
-  const [password, setPassword] = useState("");
-  const [queue, setQueue] = useState<PendingWord[]>(loadQueue);
-  const [input, setInput] = useState("");
-  const [type, setType] = useState<WordType>("normal");
-  const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
-  const [busy, setBusy] = useState(false);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
-    } catch {
-      // Storage unavailable; the queue still works for this session.
+function toResult(response: LookupResponse): { result: Result | null; message: string } {
+  switch (response.type) {
+    case "normal": {
+      const { word, results } = response.payload;
+      return results.length
+        ? { result: { type: "normal", word, items: picked(results, false) }, message: "Select definitions; click Edit to change one." }
+        : { result: null, message: `No definitions for "${word}".` };
     }
-  }, [queue]);
+    case "vietnamese": {
+      const { query, results } = response.payload;
+      return results.length
+        ? { result: { type: "vietnamese", query, items: picked(results, false) }, message: "Select matching words; click Edit to change one." }
+        : { result: null, message: `No matching English words for "${query}".` };
+    }
+    case "word_form": {
+      const { rootWord, other } = response.payload;
+      return {
+        result: { type: "word_form", base: rootWord, root: wordFormDraft(rootWord), others: picked(other, true) },
+        message: "Check related forms; one card is created per type (e.g. nouns, verbs).",
+      };
+    }
+    case "word_pattern": {
+      const payload = response.payload;
+      return {
+        result: { type: "word_pattern", draft: { ...payload, examples: asText(payload.examples, true) } },
+        message: "Edit the gap card if needed, then create.",
+      };
+    }
+    case "sentence":
+      return {
+        result: { type: "sentence", draft: { ...response.payload } },
+        message: "Edit the translation if needed, then create.",
+      };
+  }
+}
 
-  async function onLogin(event: React.FormEvent) {
+function toPayload(result: Result): unknown {
+  const checked = <T,>(items: Picked<T>[]) =>
+    items.filter((item) => item.checked).map((item) => item.data);
+  switch (result.type) {
+    case "normal":
+      return { word: result.word, results: checked(result.items) };
+    case "vietnamese":
+      return { query: result.query, results: checked(result.items) };
+    case "word_form":
+      return { rootWord: wordFormFromDraft(result.base, result.root), other: checked(result.others) };
+    case "word_pattern": {
+      const draft = result.draft;
+      return {
+        gap: draft.gap.trim(),
+        vietnamese: draft.vietnamese.trim(),
+        answer: draft.answer.trim(),
+        pattern: draft.pattern.trim(),
+        explanation: draft.explanation.trim(),
+        examples: splitList(draft.examples, true),
+      };
+    }
+    case "sentence":
+      return { vietnamese: result.draft.vietnamese, sentence: result.draft.sentence };
+  }
+}
+
+function syncLabel(state: SyncState | null): string {
+  if (!state || !state.enabled) {
+    return "AnkiWeb sync off";
+  }
+  if (state.at === null) {
+    return "Not synced yet";
+  }
+  const time = new Date(state.at * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  return state.ok ? `Synced ${time}` : `Sync failed ${time}`;
+}
+
+function Login({ onDone }: { onDone: () => void }) {
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  async function submit(event: React.FormEvent) {
     event.preventDefault();
     setBusy(true);
     setError("");
     try {
-      const next = await login(password);
-      setPassword("");
-      setTokenState(next);
+      await api.login(password);
+      onDone();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed");
     } finally {
       setBusy(false);
     }
   }
-
-  function onAdd(event: React.FormEvent) {
-    event.preventDefault();
-    const cleaned = input.trim();
-    if (!cleaned) {
-      return;
-    }
-    if (queue.length >= MAX_BATCH_SIZE) {
-      setError(`At most ${MAX_BATCH_SIZE} words per batch — send first.`);
-      return;
-    }
-    setQueue((prev) => [
-      ...prev,
-      { key: crypto.randomUUID(), input: cleaned, type },
-    ]);
-    setInput("");
-    setError("");
-    setNotice("");
-  }
-
-  function onRemove(key: string) {
-    setQueue((prev) => prev.filter((item) => item.key !== key));
-  }
-
-  function onChangeType(key: string, next: WordType) {
-    setQueue((prev) =>
-      prev.map((item) => (item.key === key ? { ...item, type: next } : item)),
-    );
-  }
-
-  async function onSend() {
-    if (queue.length === 0) {
-      return;
-    }
-    setBusy(true);
-    setError("");
-    setNotice("");
-    try {
-      const result = await sendBatch(
-        queue.map(({ input, type }) => ({ input, type })),
-      );
-      setQueue([]);
-      setNotice(`Sent ${result.count} word${result.count === 1 ? "" : "s"}.`);
-    } catch (err) {
-      if (err instanceof ApiError && err.status === 401) {
-        clearToken();
-        setTokenState(null);
-      }
-      setError(err instanceof Error ? err.message : "Could not send batch");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  function onLogout() {
-    clearToken();
-    setTokenState(null);
-    setError("");
-    setNotice("");
-  }
-
-  if (!token) {
-    return (
-      <div className="app">
-        <header className="header">
-          <h1>Word Inbox</h1>
-          <p className="sub">Personal vocabulary capture</p>
-        </header>
-        <form className="card" onSubmit={onLogin}>
-          <label className="field">
-            <span>Password</span>
-            <input
-              type="password"
-              autoComplete="current-password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="App password"
-              disabled={busy}
-            />
-          </label>
-          {error ? <p className="error">{error}</p> : null}
-          <button type="submit" disabled={busy || !password}>
-            {busy ? "Signing in…" : "Sign in"}
-          </button>
-        </form>
-      </div>
-    );
-  }
-
   return (
     <div className="app">
+      <header className="header">
+        <h1>Word Inbox</h1>
+        <p className="sub">Anki cards from anywhere</p>
+      </header>
+      <form className="card" onSubmit={submit}>
+        <label className="field">
+          <span>Password</span>
+          <input
+            type="password"
+            autoComplete="current-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            disabled={busy}
+            autoFocus
+          />
+        </label>
+        {error ? <p className="error">{error}</p> : null}
+        <button type="submit" className="primary wide" disabled={busy || !password}>
+          {busy ? "Signing in…" : "Sign in"}
+        </button>
+      </form>
+    </div>
+  );
+}
+
+export default function App() {
+  const [signedIn, setSignedIn] = useState(() => api.getToken() !== null);
+  const [cardType, setCardType] = useState<CardType>("normal");
+  const [input, setInput] = useState("");
+  const [result, setResult] = useState<Result | null>(null);
+  const [status, setStatus] = useState<Status>({ text: HINTS.normal, tone: "info" });
+  const [busy, setBusy] = useState<"" | "lookup" | "create" | "sync">("");
+  const [decks, setDecks] = useState<Deck[]>([]);
+  const [deckId, setDeckId] = useState<number | null>(savedDeckId);
+  const [sync, setSync] = useState<SyncState | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  // undefined until the first status arrives, so decks load even without sync.
+  const lastSyncAt = useRef<number | null | undefined>(undefined);
+
+  const fail = useCallback((err: unknown, fallback: string) => {
+    if (err instanceof api.ApiError && err.status === 401) {
+      api.clearToken();
+      setSignedIn(false);
+    }
+    setStatus({ text: err instanceof Error ? err.message : fallback, tone: "error" });
+  }, []);
+
+  const loadDecks = useCallback(async () => {
+    try {
+      const data = await api.decks();
+      setDecks(data.decks);
+      setDeckId((current) =>
+        current !== null && data.decks.some((deck) => deck.id === current)
+          ? current
+          : (data.defaultDeckId ?? data.decks[0]?.id ?? null),
+      );
+    } catch (err) {
+      fail(err, "Could not load decks");
+    }
+  }, [fail]);
+
+  const applySync = useCallback(
+    (state: SyncState) => {
+      setSync(state);
+      // A sync (especially the first download) can change the deck list.
+      if (state.at !== lastSyncAt.current) {
+        lastSyncAt.current = state.at;
+        void loadDecks();
+      }
+    },
+    [loadDecks],
+  );
+
+  useEffect(() => {
+    if (!signedIn) {
+      return;
+    }
+    const refresh = () =>
+      api.status().then(
+        (data) => applySync(data.sync),
+        (err: unknown) => fail(err, "Could not load status"),
+      );
+    void refresh();
+    const timer = window.setInterval(refresh, 30_000);
+    return () => window.clearInterval(timer);
+  }, [signedIn, applySync, fail]);
+
+  useEffect(() => {
+    try {
+      if (deckId !== null) {
+        localStorage.setItem(DECK_KEY, String(deckId));
+      }
+    } catch {
+      // Remembering the deck is a convenience only.
+    }
+  }, [deckId]);
+
+  function chooseType(next: CardType) {
+    setCardType(next);
+    setResult(null);
+    setStatus({ text: HINTS[next], tone: "info" });
+  }
+
+  async function onLookup(event: React.FormEvent) {
+    event.preventDefault();
+    const text = input.trim();
+    if (!text || busy) {
+      return;
+    }
+    setResult(null);
+    setBusy("lookup");
+    setStatus({ text: "Looking up…", tone: "info" });
+    try {
+      const { result: next, message } = toResult(await api.lookup(cardType, text));
+      setResult(next);
+      setStatus({ text: message, tone: "info" });
+    } catch (err) {
+      fail(err, "Lookup failed");
+    } finally {
+      setBusy("");
+    }
+  }
+
+  async function onCreate() {
+    if (!result || busy) {
+      return;
+    }
+    if (deckId === null) {
+      setStatus({ text: "Choose a deck first.", tone: "error" });
+      return;
+    }
+    setBusy("create");
+    setStatus({ text: "Generating pronunciation and creating cards…", tone: "info" });
+    try {
+      const created = await api.createCards(result.type, deckId, toPayload(result));
+      applySync(created.sync);
+      const syncNote = !created.sync.enabled
+        ? ""
+        : created.sync.ok
+          ? " · synced to AnkiWeb"
+          : ` · ${created.sync.message}`;
+      setStatus({
+        text: `Created ${created.added} card(s) in ${created.deck}${syncNote}`,
+        tone: created.sync.enabled && !created.sync.ok ? "error" : "success",
+      });
+      setResult(null);
+      setInput("");
+      inputRef.current?.focus();
+    } catch (err) {
+      fail(err, "Could not create cards");
+    } finally {
+      setBusy("");
+    }
+  }
+
+  async function onSync(forceDownload = false) {
+    if (
+      forceDownload &&
+      !window.confirm(
+        "Replace the server's collection with the one on AnkiWeb? Cards the server never uploaded will be lost.",
+      )
+    ) {
+      return;
+    }
+    setBusy("sync");
+    try {
+      applySync((await api.sync(forceDownload)).sync);
+    } catch (err) {
+      fail(err, "Sync failed");
+    } finally {
+      setBusy("");
+    }
+  }
+
+  function onKeyDown(event: React.KeyboardEvent) {
+    if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
+      event.preventDefault();
+      void onCreate();
+    }
+  }
+
+  function logout() {
+    api.clearToken();
+    setSignedIn(false);
+    setResult(null);
+  }
+
+  if (!signedIn) {
+    return <Login onDone={() => setSignedIn(true)} />;
+  }
+
+  const canCreate =
+    result !== null &&
+    !("items" in result && result.items.every((item) => !item.checked));
+
+  return (
+    <div className="app" onKeyDown={onKeyDown}>
       <header className="header row">
         <div>
           <h1>Word Inbox</h1>
-          <p className="sub">Capture for later Anki sync</p>
+          <p className="sub">Anki cards from anywhere</p>
         </div>
-        <button type="button" className="ghost" onClick={onLogout}>
+        <button type="button" className="ghost small" onClick={logout}>
           Log out
         </button>
       </header>
 
-      <form className="card add" onSubmit={onAdd}>
-        <label className="field">
-          <span>Input</span>
+      <section className="card toolbar">
+        <label className="field inline">
+          <span>Deck</span>
+          <select
+            value={deckId ?? ""}
+            onChange={(e) => setDeckId(Number(e.target.value))}
+            disabled={busy !== "" || decks.length === 0}
+          >
+            {decks.length === 0 ? <option value="">Loading…</option> : null}
+            {decks.map((deck) => (
+              <option key={deck.id} value={deck.id}>
+                {deck.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <div className="sync">
+          <span className={sync?.ok === false ? "sync-label bad" : "sync-label"} title={sync?.message}>
+            {busy === "sync" ? "Syncing…" : syncLabel(sync)}
+          </span>
+          {sync?.enabled ? (
+            <button type="button" className="ghost small" onClick={() => void onSync()} disabled={busy !== ""}>
+              Sync now
+            </button>
+          ) : null}
+        </div>
+        {sync?.ok === false ? <p className="error full">{sync.message}</p> : null}
+        {sync?.needs_forced_download ? (
+          <button type="button" className="danger small full" onClick={() => void onSync(true)} disabled={busy !== ""}>
+            Download from AnkiWeb (discard unsynced server cards)
+          </button>
+        ) : null}
+      </section>
+
+      <form className="card" onSubmit={onLookup}>
+        <div className="chips" role="radiogroup" aria-label="Card type">
+          {CARD_TYPES.map((value) => (
+            <button
+              key={value}
+              type="button"
+              role="radio"
+              aria-checked={cardType === value}
+              className={cardType === value ? "chip active" : "chip"}
+              onClick={() => chooseType(value)}
+              disabled={busy !== ""}
+            >
+              {TYPE_LABELS[value]}
+            </button>
+          ))}
+        </div>
+        <div className="lookup">
           <input
+            ref={inputRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Word, phrase, or sentence… (Enter to add)"
+            placeholder={PLACEHOLDERS[cardType]}
+            disabled={busy !== ""}
             autoFocus
-            disabled={busy}
+            enterKeyHint="search"
           />
-        </label>
-        <label className="field">
-          <span>Type</span>
-          <div className="chips">
-            {WORD_TYPES.map((value) => (
-              <button
-                key={value}
-                type="button"
-                className={type === value ? "chip active" : "chip"}
-                onClick={() => setType(value)}
-                disabled={busy}
-              >
-                {TYPE_LABELS[value]}
-              </button>
-            ))}
-          </div>
-        </label>
-        <button type="submit" disabled={busy || !input.trim()}>
-          Add to batch
-        </button>
-      </form>
-
-      <section className="card list">
-        <div className="row list-head">
-          <h2>
-            Batch <span className="muted">({queue.length})</span>
-          </h2>
-          <button
-            type="button"
-            className="ghost"
-            onClick={() => setQueue([])}
-            disabled={busy || queue.length === 0}
-          >
-            Clear
+          <button type="submit" className="primary" disabled={busy !== "" || !input.trim()}>
+            {busy === "lookup" ? "Looking up…" : "Look up"}
           </button>
         </div>
-        {queue.length === 0 ? (
-          <p className="muted">Nothing queued. Add words above, then send.</p>
-        ) : null}
-        <ul>
-          {queue.map((item) => (
-            <li key={item.key} className="item">
-              <div className="item-main">
-                <div className="item-input">{item.input}</div>
-                <div className="item-meta">
-                  <select
-                    className="badge"
-                    value={item.type}
-                    onChange={(e) =>
-                      onChangeType(item.key, e.target.value as WordType)
-                    }
-                    disabled={busy}
-                    aria-label={`Type for ${item.input}`}
-                  >
-                    {WORD_TYPES.map((value) => (
-                      <option key={value} value={value}>
-                        {TYPE_LABELS[value]}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-              <button
-                type="button"
-                className="danger"
-                onClick={() => onRemove(item.key)}
-                disabled={busy}
-              >
-                Remove
-              </button>
-            </li>
-          ))}
-        </ul>
-        {error ? <p className="error">{error}</p> : null}
-        {notice ? <p className="notice">{notice}</p> : null}
-        <button
-          type="button"
-          className="send"
-          onClick={() => void onSend()}
-          disabled={busy || queue.length === 0}
-        >
-          {busy
-            ? "Sending…"
-            : `Send ${queue.length || ""} word${queue.length === 1 ? "" : "s"}`}
-        </button>
-      </section>
+        <p className={`status ${status.tone}`}>{status.text}</p>
+      </form>
+
+      {result ? (
+        <section className="card results">
+          {result.type === "normal" ? (
+            <>
+              <h2>{result.word}</h2>
+              <DefinitionList items={result.items} onChange={(items) => setResult({ ...result, items })} />
+            </>
+          ) : null}
+          {result.type === "vietnamese" ? (
+            <VietnameseList items={result.items} onChange={(items) => setResult({ ...result, items })} />
+          ) : null}
+          {result.type === "word_form" ? (
+            <WordFormPanel
+              root={result.root}
+              onRoot={(root) => setResult({ ...result, root })}
+              others={result.others}
+              onOthers={(others) => setResult({ ...result, others })}
+            />
+          ) : null}
+          {result.type === "word_pattern" ? (
+            <FieldsForm fields={PATTERN_FIELDS} draft={result.draft} onChange={(draft) => setResult({ ...result, draft })} />
+          ) : null}
+          {result.type === "sentence" ? (
+            <FieldsForm fields={SENTENCE_FIELDS} draft={result.draft} onChange={(draft) => setResult({ ...result, draft })} />
+          ) : null}
+          <button
+            type="button"
+            className="primary wide create"
+            onClick={() => void onCreate()}
+            disabled={busy !== "" || !canCreate}
+          >
+            {busy === "create" ? "Creating cards…" : "Create cards (Ctrl+Enter)"}
+          </button>
+        </section>
+      ) : null}
     </div>
   );
 }

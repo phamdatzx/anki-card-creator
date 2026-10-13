@@ -37,11 +37,6 @@ Thumbs.db
 htmlcov/
 */meta.json
 
-# Word Inbox
-word-inbox/backend/bootstrap
-word-inbox/frontend/node_modules/
-word-inbox/frontend/dist/
-word-inbox/infra/.terraform/
-word-inbox/infra/*.tfstate
-word-inbox/infra/*.tfstate.*
-word-inbox/infra/terraform.tfvars
+# Word Inbox (see also word-inbox/.gitignore)
+word-inbox/data/
+word-inbox/.env

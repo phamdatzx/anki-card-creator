@@ -1,25 +1,43 @@
-import type { BatchResult, WordInput } from "./types";
+import type {
+  CardType,
+  CreateResponse,
+  Deck,
+  LookupResponse,
+  SyncState,
+} from "./types";
 
-const API_BASE = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(
-  /\/$/,
-  "",
-) || "http://localhost:8088";
+/** Same origin in production; Vite proxies /api to the server in dev. */
+const API_BASE =
+  (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, "") ??
+  "";
 
 const TOKEN_KEY = "word-inbox-token";
 
 export function getToken(): string | null {
-  return localStorage.getItem(TOKEN_KEY);
+  try {
+    return localStorage.getItem(TOKEN_KEY);
+  } catch {
+    return null;
+  }
 }
 
-export function setToken(token: string): void {
-  localStorage.setItem(TOKEN_KEY, token);
+function setToken(token: string): void {
+  try {
+    localStorage.setItem(TOKEN_KEY, token);
+  } catch {
+    // Storage unavailable; the session lasts until reload.
+  }
 }
 
 export function clearToken(): void {
-  localStorage.removeItem(TOKEN_KEY);
+  try {
+    localStorage.removeItem(TOKEN_KEY);
+  } catch {
+    // Nothing stored.
+  }
 }
 
-class ApiError extends Error {
+export class ApiError extends Error {
   status: number;
   constructor(status: number, message: string) {
     super(message);
@@ -27,63 +45,71 @@ class ApiError extends Error {
   }
 }
 
-async function request<T>(
-  path: string,
-  options: RequestInit = {},
-  auth = true,
-): Promise<T> {
-  const headers = new Headers(options.headers);
-  if (!headers.has("Content-Type") && options.body) {
+let memoryToken: string | null = null;
+
+async function request<T>(path: string, body?: unknown, auth = true): Promise<T> {
+  const headers = new Headers();
+  if (body !== undefined) {
     headers.set("Content-Type", "application/json");
   }
   if (auth) {
-    const token = getToken();
+    const token = getToken() ?? memoryToken;
     if (!token) {
-      throw new ApiError(401, "Not logged in");
+      throw new ApiError(401, "Sign in again.");
     }
     headers.set("Authorization", `Bearer ${token}`);
   }
-  const response = await fetch(`${API_BASE}${path}`, {
-    ...options,
+  const response = await fetch(`${API_BASE}/api${path}`, {
+    method: body === undefined ? "GET" : "POST",
     headers,
+    body: body === undefined ? undefined : JSON.stringify(body),
   });
-  if (response.status === 204) {
-    return undefined as T;
-  }
   const text = await response.text();
   let data: unknown = null;
-  if (text) {
-    try {
-      data = JSON.parse(text);
-    } catch {
-      data = { error: text };
-    }
+  try {
+    data = text ? JSON.parse(text) : null;
+  } catch {
+    data = { detail: text };
   }
   if (!response.ok) {
-    const message =
-      data && typeof data === "object" && "error" in data
-        ? String((data as { error: unknown }).error)
-        : `Request failed (${response.status})`;
-    throw new ApiError(response.status, message);
+    const detail =
+      data && typeof data === "object" && "detail" in data
+        ? (data as { detail: unknown }).detail
+        : null;
+    throw new ApiError(
+      response.status,
+      typeof detail === "string" ? detail : `Request failed (${response.status})`,
+    );
   }
   return data as T;
 }
 
-export async function login(password: string): Promise<string> {
-  const data = await request<{ token: string }>(
-    "/login",
-    { method: "POST", body: JSON.stringify({ password }) },
-    false,
-  );
+export async function login(password: string): Promise<void> {
+  const data = await request<{ token: string }>("/login", { password }, false);
+  memoryToken = data.token;
   setToken(data.token);
-  return data.token;
 }
 
-export async function sendBatch(words: WordInput[]): Promise<BatchResult> {
-  return request<BatchResult>("/words", {
-    method: "POST",
-    body: JSON.stringify({ words }),
-  });
+export function decks(): Promise<{ decks: Deck[]; defaultDeckId: number | null }> {
+  return request("/decks");
 }
 
-export { ApiError };
+export function status(): Promise<{ sync: SyncState }> {
+  return request("/status");
+}
+
+export function lookup(type: CardType, input: string): Promise<LookupResponse> {
+  return request("/lookup", { type, input });
+}
+
+export function createCards(
+  type: CardType,
+  deckId: number,
+  payload: unknown,
+): Promise<CreateResponse> {
+  return request("/cards", { type, deckId, payload });
+}
+
+export function sync(forceDownload = false): Promise<{ sync: SyncState }> {
+  return request("/sync", { forceDownload });
+}

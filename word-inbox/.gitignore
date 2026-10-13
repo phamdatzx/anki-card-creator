@@ -1,13 +1,9 @@
-backend/bootstrap
-backend/function.zip
 frontend/node_modules/
 frontend/dist/
 frontend/.env
 frontend/.env.local
 frontend/.env.production.local
-infra/.terraform/
-infra/*.tfstate
-infra/*.tfstate.*
-infra/terraform.tfvars
+# Collection, media, sync key and app secret.
+data/
 .env
 **/.DS_Store

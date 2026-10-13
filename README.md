@@ -177,14 +177,23 @@ anki_card_creator/
   audio.py         # TTS instructions, deduplication, and media storage
   audio_keys.py    # shared normalized audio identity keys
   text.py          # pure text/list/score helpers
+  create_checks.py # pre-create checks shared with Word Inbox
   lookups/         # per-card-type prompts, schemas, and payload contracts
   notes/           # shared CSS/registry and per-card-type note writers
   ui/              # widgets, formatting, editors, and dialog orchestration
   config.json      # default config (no secrets)
   manifest.json
 tests/             # focused pure unit tests
+word-inbox/        # web app: same lookups and cards from any browser
 pyproject.toml     # pytest and Ruff development configuration
 ```
+
+## Word Inbox (web version)
+
+[`word-inbox/`](word-inbox/README.md) runs the same lookups and note writers
+on a server. It keeps a headless Anki collection, built with the `anki` pip
+package, and syncs it with AnkiWeb, so you can create cards from your phone
+without desktop Anki. See its README for setup.
 
 ## Package for sharing
 
@@ -215,7 +224,8 @@ The package script recursively includes subpackages and excludes every
 ## Development verification
 
 The add-on has no third-party runtime dependencies. Pytest and Ruff are
-development-only tools:
+development-only tools. Pytest also runs the Word Inbox server tests when
+`word-inbox/server/requirements-dev.txt` is installed, and skips them otherwise:
 
 ```bash
 python3 -m pytest
