@@ -1,4 +1,4 @@
-/** Inline versions of the add-on's DefinitionDetailDialog and FamilyMemberDialog. */
+/** Popup versions of the add-on's DefinitionDetailDialog and FamilyMemberDialog. */
 
 import { useState } from "react";
 import {
@@ -9,6 +9,7 @@ import {
   type Draft,
   type FieldSpec,
 } from "./forms";
+import { Modal } from "./modal";
 import { asText, parseScore, scoreText, splitList } from "./text";
 import type { DefinitionResult, VietnameseResult, WordFormItem } from "./types";
 
@@ -47,26 +48,34 @@ export function FieldsForm({
 }
 
 function EditorShell({
+  title,
   children,
   onSave,
   onCancel,
 }: {
+  title: string;
   children: React.ReactNode;
   onSave: () => void;
   onCancel: () => void;
 }) {
   return (
-    <div className="editor">
+    <Modal
+      title={title}
+      onClose={onCancel}
+      closeOnBackdrop={false}
+      footer={
+        <>
+          <button type="button" className="ghost" onClick={onCancel}>
+            Cancel
+          </button>
+          <button type="button" className="primary" onClick={onSave}>
+            Save
+          </button>
+        </>
+      }
+    >
       {children}
-      <div className="row end">
-        <button type="button" className="ghost" onClick={onCancel}>
-          Cancel
-        </button>
-        <button type="button" className="primary small" onClick={onSave}>
-          Save
-        </button>
-      </div>
-    </div>
+    </Modal>
   );
 }
 
@@ -122,7 +131,11 @@ export function DefinitionEditor<T extends DefinitionResult | VietnameseResult>(
     });
   }
   return (
-    <EditorShell onSave={save} onCancel={onCancel}>
+    <EditorShell
+      title={"word" in value && value.word ? `Edit definition — ${value.word}` : "Edit definition"}
+      onSave={save}
+      onCancel={onCancel}
+    >
       <FieldsForm fields={fields} draft={draft} onChange={setDraft} />
     </EditorShell>
   );
@@ -139,7 +152,11 @@ export function FamilyEditor({
 }) {
   const [draft, setDraft] = useState<Draft>(() => wordFormDraft(value));
   return (
-    <EditorShell onSave={() => onSave(wordFormFromDraft(value, draft))} onCancel={onCancel}>
+    <EditorShell
+      title={value.word ? `Edit word form — ${value.word}` : "Add word form"}
+      onSave={() => onSave(wordFormFromDraft(value, draft))}
+      onCancel={onCancel}
+    >
       <FieldsForm fields={WORD_FORM_FIELDS} draft={draft} onChange={setDraft} />
     </EditorShell>
   );

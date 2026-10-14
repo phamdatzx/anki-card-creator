@@ -6,10 +6,21 @@ without desktop Anki:
 1. Pick a card type (Normal, Word form, Word pattern, Sentence,
    Vietnamese → English), type a word or sentence, and click **Look up**.
 2. Review the results like in the add-on: tick definitions or related forms,
-   click **Edit** to change any field, then **Create cards** (Ctrl+Enter).
+   click **Edit** to change any field in a popup, then **Create cards**
+   (Ctrl+Enter).
 3. The server generates the pronunciation audio, adds the notes to the deck
    you chose, and syncs with **AnkiWeb**. Your phone and desktop get the cards
    on their next sync.
+
+**Manage** next to the deck picker opens the deck manager:
+- **Create** a deck. Use `Parent::Child` to make a subdeck.
+- **Rename** a deck. Renaming a parent also moves its subdecks.
+- **Delete** a deck, after a confirmation that shows how many cards go with it.
+
+Deleting a deck also deletes its subdecks and all their cards. The Default
+deck can't be deleted, and names must be unique (ignoring case). Like new
+cards, every deck change is synced to AnkiWeb right away, so it reaches your
+other devices on their next sync.
 
 The server keeps its own Anki collection, opened with the `anki` pip package.
 It imports the add-on's pure modules (`anki_card_creator/lookups`, `audio.py`,
@@ -181,7 +192,10 @@ All routes except login and health need `Authorization: Bearer <token>`.
 | --- | --- | --- |
 | `POST` | `/api/login` | `{password}` → `{token}` |
 | `GET` | `/api/health` | → `{ok}` |
-| `GET` | `/api/decks` | → `{decks: [{id, name}], defaultDeckId}` |
+| `GET` | `/api/decks` | → `{decks: [{id, name, cards}], defaultDeckId}` (`cards` includes subdecks) |
+| `POST` | `/api/decks` | `{name}` → `201 {deck, sync}`; `409` if the name is taken |
+| `PATCH` | `/api/decks/{id}` | `{name}` → `{deck, sync}` |
+| `DELETE` | `/api/decks/{id}` | → `{deleted: {name, cards}, sync}`; deletes subdecks and cards too, refuses the Default deck |
 | `GET` | `/api/status` | → `{sync}` |
 | `POST` | `/api/lookup` | `{type, input}` → `{type, payload}` (the add-on's lookup payload; Sentence adds `sentence`) |
 | `POST` | `/api/cards` | `{type, deckId, payload}` → `{added, deck, sync}`; `400` with the add-on's messages when something is missing |

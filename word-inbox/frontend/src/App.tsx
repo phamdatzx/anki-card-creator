@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import * as api from "./api";
+import { DeckManager } from "./decks";
 import { FieldsForm } from "./editors";
 import {
   PATTERN_FIELDS,
@@ -174,6 +175,7 @@ export default function App() {
   const [decks, setDecks] = useState<Deck[]>([]);
   const [deckId, setDeckId] = useState<number | null>(savedDeckId);
   const [sync, setSync] = useState<SyncState | null>(null);
+  const [managingDecks, setManagingDecks] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   // undefined until the first status arrives, so decks load even without sync.
   const lastSyncAt = useRef<number | null | undefined>(undefined);
@@ -347,21 +349,32 @@ export default function App() {
       </header>
 
       <section className="card toolbar">
-        <label className="field inline">
-          <span>Deck</span>
-          <select
-            value={deckId ?? ""}
-            onChange={(e) => setDeckId(Number(e.target.value))}
-            disabled={busy !== "" || decks.length === 0}
-          >
-            {decks.length === 0 ? <option value="">Loading…</option> : null}
-            {decks.map((deck) => (
-              <option key={deck.id} value={deck.id}>
-                {deck.name}
-              </option>
-            ))}
-          </select>
-        </label>
+        <div className="field inline">
+          <label htmlFor="deck">Deck</label>
+          <div className="deck-picker">
+            <select
+              id="deck"
+              value={deckId ?? ""}
+              onChange={(e) => setDeckId(Number(e.target.value))}
+              disabled={busy !== "" || decks.length === 0}
+            >
+              {decks.length === 0 ? <option value="">Loading…</option> : null}
+              {decks.map((deck) => (
+                <option key={deck.id} value={deck.id}>
+                  {deck.name}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              className="ghost small"
+              onClick={() => setManagingDecks(true)}
+              disabled={busy !== "" || decks.length === 0}
+            >
+              Manage
+            </button>
+          </div>
+        </div>
         <div className="sync">
           <span className={sync?.ok === false ? "sync-label bad" : "sync-label"} title={sync?.message}>
             {busy === "sync" ? "Syncing…" : syncLabel(sync)}
@@ -447,6 +460,20 @@ export default function App() {
             {busy === "create" ? "Creating cards…" : "Create cards (Ctrl+Enter)"}
           </button>
         </section>
+      ) : null}
+
+      {managingDecks ? (
+        <DeckManager
+          decks={decks}
+          onClose={() => setManagingDecks(false)}
+          onChanged={async (state, select) => {
+            applySync(state);
+            await loadDecks();
+            if (select !== undefined) {
+              setDeckId(select);
+            }
+          }}
+        />
       ) : null}
     </div>
   );

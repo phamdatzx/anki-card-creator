@@ -47,7 +47,12 @@ export class ApiError extends Error {
 
 let memoryToken: string | null = null;
 
-async function request<T>(path: string, body?: unknown, auth = true): Promise<T> {
+async function request<T>(
+  path: string,
+  body?: unknown,
+  auth = true,
+  method: string = body === undefined ? "GET" : "POST",
+): Promise<T> {
   const headers = new Headers();
   if (body !== undefined) {
     headers.set("Content-Type", "application/json");
@@ -60,7 +65,7 @@ async function request<T>(path: string, body?: unknown, auth = true): Promise<T>
     headers.set("Authorization", `Bearer ${token}`);
   }
   const response = await fetch(`${API_BASE}/api${path}`, {
-    method: body === undefined ? "GET" : "POST",
+    method,
     headers,
     body: body === undefined ? undefined : JSON.stringify(body),
   });
@@ -108,6 +113,20 @@ export function createCards(
   payload: unknown,
 ): Promise<CreateResponse> {
   return request("/cards", { type, deckId, payload });
+}
+
+export function createDeck(name: string): Promise<{ deck: Deck; sync: SyncState }> {
+  return request("/decks", { name });
+}
+
+export function renameDeck(id: number, name: string): Promise<{ deck: Deck; sync: SyncState }> {
+  return request(`/decks/${id}`, { name }, true, "PATCH");
+}
+
+export function deleteDeck(
+  id: number,
+): Promise<{ deleted: { name: string; cards: number }; sync: SyncState }> {
+  return request(`/decks/${id}`, undefined, true, "DELETE");
 }
 
 export function sync(forceDownload = false): Promise<{ sync: SyncState }> {

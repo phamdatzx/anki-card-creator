@@ -86,7 +86,8 @@ export type LookupResponse =
   | { type: "word_pattern"; payload: WordPatternPayload }
   | { type: "sentence"; payload: SentencePayload };
 
-export type Deck = { id: number; name: string };
+/** `cards` includes subdecks' cards, as deleting a deck removes those too. */
+export type Deck = { id: number; name: string; cards: number };
 
 export type SyncState = {
   enabled: boolean;
