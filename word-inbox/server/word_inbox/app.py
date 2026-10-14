@@ -16,6 +16,7 @@ from anki_card_creator.openai_client import OpenAIError
 from .anki_store import AnkiStore
 from .auth import check_password, issue_token, verify_token
 from .cards import CARD_TYPES, CardRequestError, check_payload, create_cards, lookup
+from .decks import DeckError, create_deck, delete_deck, list_decks, rename_deck
 from .settings import Settings, load_settings
 
 
@@ -32,6 +33,10 @@ class CardsBody(BaseModel):
     type: str
     deckId: int  # noqa: N815 - JSON field name
     payload: dict[str, Any]
+
+
+class DeckBody(BaseModel):
+    name: str
 
 
 class SyncBody(BaseModel):
@@ -92,9 +97,30 @@ def create_app(
     @app.get("/api/decks", dependencies=authed)
     def decks() -> dict[str, Any]:
         return {
-            "decks": store.decks(),
+            "decks": store.read(list_decks),
             "defaultDeckId": store.deck_id(settings.default_deck),
         }
+
+    def _deck_change(write: Any) -> tuple[Any, Any]:
+        try:
+            return store.change(write)
+        except DeckError as exc:
+            raise HTTPException(exc.status, str(exc)) from exc
+
+    @app.post("/api/decks", dependencies=authed, status_code=201)
+    def create_deck_route(body: DeckBody) -> dict[str, Any]:
+        deck, sync = _deck_change(lambda col: create_deck(col, body.name))
+        return {"deck": deck, "sync": sync.as_json()}
+
+    @app.patch("/api/decks/{deck_id}", dependencies=authed)
+    def rename_deck_route(deck_id: int, body: DeckBody) -> dict[str, Any]:
+        deck, sync = _deck_change(lambda col: rename_deck(col, deck_id, body.name))
+        return {"deck": deck, "sync": sync.as_json()}
+
+    @app.delete("/api/decks/{deck_id}", dependencies=authed)
+    def delete_deck_route(deck_id: int) -> dict[str, Any]:
+        deleted, sync = _deck_change(lambda col: delete_deck(col, deck_id))
+        return {"deleted": deleted, "sync": sync.as_json()}
 
     @app.post("/api/lookup", dependencies=authed)
     def lookup_route(body: LookupBody) -> dict[str, Any]:

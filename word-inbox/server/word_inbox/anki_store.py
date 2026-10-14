@@ -77,26 +77,22 @@ class AnkiStore:
                 raise RuntimeError("The collection is not open.")
             yield self._col
 
-    def decks(self) -> list[dict[str, Any]]:
+    def read(self, query: Callable[[Collection], T]) -> T:
+        """Run a read-only query; no sync."""
         with self.collection() as col:
-            return [
-                {"id": deck.id, "name": deck.name}
-                for deck in col.decks.all_names_and_ids(include_filtered=False)
-            ]
+            return query(col)
 
     def deck_id(self, name: str) -> int | None:
         with self.collection() as col:
             found = col.decks.id_for_name(name)
             return int(found) if found else None
 
-    def add(
-        self, deck_id: int, write: Callable[[Collection], T]
-    ) -> tuple[T, str, SyncState]:
-        """Pull, write, push. A failed sync never discards written cards."""
+    def change(self, write: Callable[[Collection], T]) -> tuple[T, SyncState]:
+        """Pull, write, push. A failed sync never discards the change.
+
+        Pulling first means ``write`` sees decks made or renamed elsewhere.
+        """
         with self.collection() as col:
-            deck = col.decks.get(deck_id, default=False)
-            if not deck:
-                raise LookupError(f"Deck {deck_id} does not exist.")
             if self.sync_state.enabled:
                 self._sync_locked(col)
             result = write(col)
@@ -105,7 +101,19 @@ class AnkiStore:
                 if self.sync_state.enabled
                 else self.sync_state
             )
-            return result, str(deck["name"]), state
+            return result, state
+
+    def add(
+        self, deck_id: int, write: Callable[[Collection], T]
+    ) -> tuple[T, str, SyncState]:
+        def checked(col: Collection) -> tuple[T, str]:
+            deck = col.decks.get(deck_id, default=False)
+            if not deck:
+                raise LookupError(f"Deck {deck_id} does not exist.")
+            return write(col), str(deck["name"])
+
+        (result, name), state = self.change(checked)
+        return result, name, state
 
     def sync(self, *, force_download: bool = False) -> SyncState:
         with self.collection() as col:

@@ -96,3 +96,11 @@ def test_full_sync_with_unsynced_server_notes_needs_confirmation(store: AnkiStor
 
     state = store._sync_locked(col, force_download=True)
     assert state.ok and "download" in col.calls
+
+
+def test_changes_pull_before_and_push_after(store: AnkiStore):
+    col = FakeCollection(R.NORMAL_SYNC)
+    store._col = col  # the store syncs whatever collection it holds
+    result, state = store.change(lambda held: held.calls.append("write") or "done")
+    assert result == "done" and state.ok
+    assert col.calls == ["sync:key-1", "media", "write", "sync:key-1", "media"]

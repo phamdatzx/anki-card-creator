@@ -46,7 +46,8 @@
   margin-bottom: 0.8rem;
 }
 
-.field > span {
+.field > span,
+.field > label {
   font-size: 0.85rem;
   font-weight: 600;
   color: var(--muted);
@@ -315,6 +316,128 @@ button:disabled {
 
 .create {
   margin-top: 1rem;
+}
+
+.deck-picker {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.deck-picker select {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Popups (native <dialog>) */
+.modal {
+  width: min(560px, calc(100% - 2rem));
+  max-height: calc(100dvh - 2rem);
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--card);
+  color: var(--ink);
+  box-shadow: var(--shadow);
+}
+
+.modal::backdrop {
+  background: rgba(12, 10, 9, 0.5);
+}
+
+.modal-panel {
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100dvh - 2rem);
+}
+
+.modal-head,
+.modal-foot {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.9rem 1.1rem;
+}
+
+.modal-head {
+  justify-content: space-between;
+  border-bottom: 1px solid var(--line);
+}
+
+.modal-head h2 {
+  margin: 0;
+  font-size: 1.1rem;
+  overflow-wrap: anywhere;
+}
+
+.modal-body {
+  padding: 1rem 1.1rem;
+  overflow-y: auto;
+}
+
+.modal-foot {
+  justify-content: flex-end;
+  border-top: 1px solid var(--line);
+}
+
+/* Deck manager */
+.deck-new,
+.deck-edit {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.deck-new {
+  margin-bottom: 0.9rem;
+}
+
+.deck-new input,
+.deck-edit input {
+  flex: 1;
+  min-width: 0;
+}
+
+.deck-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.deck-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding-block: 0.6rem;
+  border-top: 1px solid var(--line);
+}
+
+.deck-row > .deck-edit,
+.deck-row > .deck-confirm {
+  flex: 1 1 100%;
+}
+
+.deck-info {
+  display: grid;
+  min-width: 0;
+}
+
+.deck-name {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.small-text {
+  font-size: 0.85rem;
+}
+
+.deck-actions {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.deck-confirm p {
+  margin: 0 0 0.6rem;
 }
 
 @media (max-width: 480px) {

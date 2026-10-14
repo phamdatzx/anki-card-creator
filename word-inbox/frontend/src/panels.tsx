@@ -30,21 +30,11 @@ function PickList<T>({
   if (items.length === 0) {
     return <>{empty}</>;
   }
+  const current = items.find((item) => item.key === editing);
   return (
-    <ul className="picks">
-      {items.map((item) =>
-        editing === item.key ? (
-          <li key={item.key} className="pick editing">
-            {editor(
-              item.data,
-              (next) => {
-                update(item.key, { data: next });
-                setEditing(null);
-              },
-              () => setEditing(null),
-            )}
-          </li>
-        ) : (
+    <>
+      <ul className="picks">
+        {items.map((item) => (
           <li key={item.key} className={item.checked ? "pick checked" : "pick"}>
             <label className="pick-main">
               <input
@@ -60,9 +50,19 @@ function PickList<T>({
               </button>
             </div>
           </li>
-        ),
-      )}
-    </ul>
+        ))}
+      </ul>
+      {current
+        ? editor(
+            current.data,
+            (next) => {
+              update(current.key, { data: next });
+              setEditing(null);
+            },
+            () => setEditing(null),
+          )
+        : null}
+    </>
   );
 }
 
