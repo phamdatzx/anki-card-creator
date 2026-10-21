@@ -10,6 +10,7 @@ from anki_card_creator.config import AddonConfig, chat_kwargs
 from anki_card_creator.create_checks import (
     collocation_problems,
     definition_problems,
+    phrase_problems,
     sentence_problems,
     vietnamese_problems,
     word_form_problems,
@@ -19,23 +20,27 @@ from anki_card_creator.lookups.collocation import lookup_collocations
 from anki_card_creator.lookups.contracts import (
     validate_collocation_payload,
     validate_normal_payload,
+    validate_phrase_payload,
     validate_vietnamese_payload,
     validate_word_form_payload,
     validate_word_pattern_payload,
 )
 from anki_card_creator.lookups.normal import lookup_normal_word
+from anki_card_creator.lookups.phrase import lookup_phrase
 from anki_card_creator.lookups.sentence import lookup_sentence
 from anki_card_creator.lookups.vietnamese import lookup_vietnamese_word
 from anki_card_creator.lookups.word_form import lookup_word_form
 from anki_card_creator.lookups.word_pattern import lookup_word_pattern
 from anki_card_creator.notes.collocation import add_collocation_notes
 from anki_card_creator.notes.normal import add_definition_notes
+from anki_card_creator.notes.phrase import add_phrase_notes
 from anki_card_creator.notes.sentence import add_sentence_note
 from anki_card_creator.notes.word_form import add_word_form_notes
 from anki_card_creator.notes.word_pattern import add_word_pattern_note
 
 _SCORES = ("popularity", "difficulty")
-# Collocation is Word Inbox only for now; the add-on dialog has no panel for it.
+# Collocation and Phrase are Word Inbox only for now; the add-on dialog has
+# no panel for them.
 CARD_TYPES = (
     "normal",
     "word_form",
@@ -43,6 +48,7 @@ CARD_TYPES = (
     "sentence",
     "vietnamese",
     "collocation",
+    "phrase",
 )
 
 
@@ -70,6 +76,8 @@ def lookup(card_type: str, text: str, config: AddonConfig) -> dict[str, Any]:
         return {**lookup_sentence(text, **kwargs), "sentence": text.strip()}
     if card_type == "collocation":
         return dict(lookup_collocations(text, **kwargs))
+    if card_type == "phrase":
+        return dict(lookup_phrase(text, **kwargs))
     raise CardRequestError([f"Unknown card type: {card_type}"])
 
 
@@ -143,6 +151,15 @@ def check_payload(card_type: str, payload: Any) -> Any:
     elif card_type == "collocation":
         _require_no_problems(collocation_problems(_dicts(payload.get("items"))))
         _validated(payload, validate_collocation_payload)
+    elif card_type == "phrase":
+        phrase = payload.get("phrase")
+        _require_no_problems(
+            phrase_problems(
+                phrase if isinstance(phrase, str) else "",
+                _dicts(payload.get("results")),
+            )
+        )
+        _validated(payload, validate_phrase_payload)
     else:
         raise CardRequestError([f"Unknown card type: {card_type}"])
     return payload
@@ -181,5 +198,9 @@ def create_cards(
     if card_type == "collocation":
         return add_collocation_notes(
             col, deck_id, payload["keyword"].strip(), payload["items"]
+        )
+    if card_type == "phrase":
+        return add_phrase_notes(
+            col, deck_id, payload["phrase"].strip(), payload["results"]
         )
     raise CardRequestError([f"Unknown card type: {card_type}"])

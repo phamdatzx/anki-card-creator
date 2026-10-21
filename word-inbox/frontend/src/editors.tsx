@@ -3,6 +3,7 @@
 import { useState } from "react";
 import {
   COLLOCATION_FIELDS,
+  PHRASE_FIELDS,
   SCORE_FIELDS,
   WORD_FORM_FIELDS,
   wordFormDraft,
@@ -16,6 +17,7 @@ import {
   GAP_MARK,
   type CollocationItem,
   type DefinitionResult,
+  type PhraseSense,
   type VietnameseResult,
   type WordFormItem,
 } from "./types";
@@ -200,6 +202,37 @@ export function CollocationEditor({
       {blanks !== 1 ? (
         <p className="error">The gap sentence needs exactly one {GAP_MARK}.</p>
       ) : null}
+    </EditorShell>
+  );
+}
+
+export function PhraseEditor({
+  value,
+  phrase,
+  onSave,
+  onCancel,
+}: {
+  value: PhraseSense;
+  phrase: string;
+  onSave: (next: PhraseSense) => void;
+  onCancel: () => void;
+}) {
+  const [draft, setDraft] = useState<Draft>(() => ({
+    ...value,
+    examples: asText(value.examples, true),
+  }));
+  function save() {
+    onSave({
+      structure: draft.structure.trim(),
+      definition: draft.definition.trim(),
+      vietnamese: draft.vietnamese.trim(),
+      examples: splitList(draft.examples, true),
+      usage: draft.usage.trim(),
+    });
+  }
+  return (
+    <EditorShell title={`Edit meaning — ${phrase}`} onSave={save} onCancel={onCancel}>
+      <FieldsForm fields={PHRASE_FIELDS} draft={draft} onChange={setDraft} />
     </EditorShell>
   );
 }

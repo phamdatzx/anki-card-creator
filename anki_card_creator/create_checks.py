@@ -12,6 +12,7 @@ from .lookups.contracts import (
     GAP_MARK,
     CollocationItem,
     DefinitionResult,
+    PhraseSense,
     VietnameseResult,
     WordFormPayload,
     WordPatternPayload,
@@ -91,6 +92,19 @@ def collocation_problems(selected: list[CollocationItem]) -> list[str]:
         f"one {GAP_MARK}:",
         *missing,
     ]
+
+
+def phrase_problems(phrase: str, selected: list[PhraseSense]) -> list[str]:
+    if not phrase.strip():
+        return ["Enter the phrase."]
+    if not selected:
+        return ["Select at least one meaning."]
+    missing = [
+        f"meaning {index + 1}"
+        for index, sense in enumerate(selected)
+        if not str(sense.get("definition") or "").strip()
+    ]
+    return ["Each selected meaning needs a definition:", *missing] if missing else []
 
 
 def problems_message(problems: list[str]) -> str:

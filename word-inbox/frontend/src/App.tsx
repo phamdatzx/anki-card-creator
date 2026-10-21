@@ -11,7 +11,13 @@ import {
   type Draft,
   type Picked,
 } from "./forms";
-import { CollocationList, DefinitionList, VietnameseList, WordFormPanel } from "./panels";
+import {
+  CollocationList,
+  DefinitionList,
+  PhraseList,
+  VietnameseList,
+  WordFormPanel,
+} from "./panels";
 import { asText, splitList } from "./text";
 import {
   CARD_TYPES,
@@ -20,6 +26,7 @@ import {
   TYPE_LABELS,
   type CardType,
   type CollocationItem,
+  type PhraseSense,
   type DefinitionResult,
   type Deck,
   type LookupResponse,
@@ -35,7 +42,8 @@ type Result =
   | { type: "word_form"; base: WordFormItem; root: Draft; others: Picked<WordFormItem>[] }
   | { type: "word_pattern"; draft: Draft }
   | { type: "sentence"; draft: Draft }
-  | { type: "collocation"; keyword: string; items: Picked<CollocationItem>[] };
+  | { type: "collocation"; keyword: string; items: Picked<CollocationItem>[] }
+  | { type: "phrase"; phrase: string; items: Picked<PhraseSense>[] };
 
 type Status = { text: string; tone: "info" | "error" | "success" };
 
@@ -101,6 +109,16 @@ function toResult(response: LookupResponse): { result: Result | null; message: s
           }
         : { result: null, message: `No collocations found for "${keyword}".` };
     }
+    case "phrase": {
+      const { phrase, results } = response.payload;
+      return results.length
+        ? {
+            // A single meaning is almost always wanted; preselect it.
+            result: { type: "phrase", phrase, items: picked(results, results.length === 1) },
+            message: "Tick the meanings to learn; each becomes one recall card.",
+          }
+        : { result: null, message: `No meanings found for "${phrase}".` };
+    }
   }
 }
 
@@ -129,6 +147,8 @@ function toPayload(result: Result): unknown {
       return { vietnamese: result.draft.vietnamese, sentence: result.draft.sentence };
     case "collocation":
       return { keyword: result.keyword, items: checked(result.items) };
+    case "phrase":
+      return { phrase: result.phrase, results: checked(result.items) };
   }
 }
 
@@ -474,6 +494,16 @@ export default function App() {
             <>
               <h2>{result.keyword}</h2>
               <CollocationList items={result.items} onChange={(items) => setResult({ ...result, items })} />
+            </>
+          ) : null}
+          {result.type === "phrase" ? (
+            <>
+              <h2>{result.phrase}</h2>
+              <PhraseList
+                phrase={result.phrase}
+                items={result.items}
+                onChange={(items) => setResult({ ...result, items })}
+              />
             </>
           ) : null}
           {result.type === "sentence" ? (

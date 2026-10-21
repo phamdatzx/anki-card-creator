@@ -245,3 +245,90 @@ def test_collocation_create_reports_problems(client: TestClient):
     bad = post({"keyword": "decision", "items": [broken]})
     assert bad.status_code == 400
     assert bad.json()["detail"].endswith("• make a decision")
+
+
+PHRASE = {
+    "phrase": "sharp fall",
+    "results": [
+        {
+            "structure": "adjective + noun",
+            "definition": "a sudden, large decrease",
+            "vietnamese": "sự giảm mạnh",
+            "examples": ["Shares saw a sharp fall in early trading."],
+            "usage": "news, business",
+        },
+        {
+            "structure": "adjective + noun",
+            "definition": "a steep drop in level or height",
+            "vietnamese": "dốc đứng",
+            "examples": ["There is a sharp fall to the river."],
+            "usage": "descriptive",
+        },
+        {
+            "structure": "adjective + noun",
+            "definition": "a hard tumble to the ground",
+            "vietnamese": "cú ngã mạnh",
+            "examples": ["She had a sharp fall on the ice."],
+            "usage": "neutral",
+        },
+    ],
+}
+
+
+def test_phrase_lookup_then_create_one_note_per_sense(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+):
+    def fake_chat(**kwargs: Any) -> dict[str, Any]:
+        assert kwargs["schema_name"] == "phrase_lookup"
+        assert kwargs["user"] == "Phrase: sharp fall"
+        return PHRASE
+
+    monkeypatch.setattr("anki_card_creator.lookups.phrase.chat_json", fake_chat)
+    found = client.post("/api/lookup", json={"type": "phrase", "input": "sharp fall"})
+    assert found.status_code == 200, found.text
+    payload = found.json()["payload"]
+    assert len(payload["results"]) == 3
+
+    payload["results"] = [payload["results"][0], payload["results"][2]]
+    payload["results"][1]["usage"] = "edited usage"
+    deck_id = client.get("/api/decks").json()["defaultDeckId"]
+    created = client.post(
+        "/api/cards", json={"type": "phrase", "deckId": deck_id, "payload": payload}
+    )
+    assert created.status_code == 200, created.text
+    assert created.json()["added"] == 2
+
+    with _collection(client) as col:
+        notes = [col.get_note(nid) for nid in col.find_notes('"note:VIP Phrase"')]
+        by_definition = {note["Definition"]: note for note in notes}
+        assert set(by_definition) == {
+            "a sudden, large decrease",
+            "a hard tumble to the ground",
+        }
+        first = by_definition["a sudden, large decrease"]
+        assert first["Phrase"] == "sharp fall"
+        assert first["Hint"] == "s___ f___"
+        assert first["Examples"] == (
+            '<ul class="examples-list"><li>Shares saw a sharp fall in early trading.</li></ul>'
+        )
+        assert by_definition["a hard tumble to the ground"]["Usage"] == "edited usage"
+        assert first.cards()[0].did == deck_id
+
+
+def test_phrase_create_reports_problems(client: TestClient):
+    deck_id = client.get("/api/decks").json()["defaultDeckId"]
+
+    def post(payload: dict[str, Any]):
+        return client.post(
+            "/api/cards", json={"type": "phrase", "deckId": deck_id, "payload": payload}
+        )
+
+    none = post({"phrase": "sharp fall", "results": []})
+    assert none.status_code == 400
+    assert none.json()["detail"] == "Select at least one meaning."
+    blank = post({"phrase": " ", "results": PHRASE["results"][:1]})
+    assert blank.json()["detail"] == "Enter the phrase."
+    empty_definition = {**PHRASE["results"][0], "definition": ""}
+    bad = post({"phrase": "sharp fall", "results": [empty_definition]})
+    assert bad.status_code == 400
+    assert bad.json()["detail"].endswith("• meaning 1")

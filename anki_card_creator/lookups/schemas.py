@@ -193,3 +193,26 @@ COLLOCATION_SCHEMA: dict[str, Any] = {
     },
     "required": ["keyword", "items"],
 }
+
+PHRASE_SENSE: dict[str, Any] = {
+    "type": "object",
+    "additionalProperties": False,
+    "properties": {
+        "structure": {"type": "string"},
+        "definition": {"type": "string"},
+        "vietnamese": {"type": "string"},
+        "examples": STRING_LIST,
+        "usage": {"type": "string"},
+    },
+    "required": ["structure", "definition", "vietnamese", "examples", "usage"],
+}
+
+PHRASE_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "additionalProperties": False,
+    "properties": {
+        "phrase": {"type": "string"},
+        "results": {"type": "array", "items": PHRASE_SENSE},
+    },
+    "required": ["phrase", "results"],
+}
