@@ -8,13 +8,16 @@ from typing import Any
 from anki_card_creator.audio import definition_audio_tags, word_form_audio
 from anki_card_creator.config import AddonConfig, chat_kwargs
 from anki_card_creator.create_checks import (
+    collocation_problems,
     definition_problems,
     sentence_problems,
     vietnamese_problems,
     word_form_problems,
     word_pattern_problems,
 )
+from anki_card_creator.lookups.collocation import lookup_collocations
 from anki_card_creator.lookups.contracts import (
+    validate_collocation_payload,
     validate_normal_payload,
     validate_vietnamese_payload,
     validate_word_form_payload,
@@ -25,13 +28,22 @@ from anki_card_creator.lookups.sentence import lookup_sentence
 from anki_card_creator.lookups.vietnamese import lookup_vietnamese_word
 from anki_card_creator.lookups.word_form import lookup_word_form
 from anki_card_creator.lookups.word_pattern import lookup_word_pattern
+from anki_card_creator.notes.collocation import add_collocation_notes
 from anki_card_creator.notes.normal import add_definition_notes
 from anki_card_creator.notes.sentence import add_sentence_note
 from anki_card_creator.notes.word_form import add_word_form_notes
 from anki_card_creator.notes.word_pattern import add_word_pattern_note
 
 _SCORES = ("popularity", "difficulty")
-CARD_TYPES = ("normal", "word_form", "word_pattern", "sentence", "vietnamese")
+# Collocation is Word Inbox only for now; the add-on dialog has no panel for it.
+CARD_TYPES = (
+    "normal",
+    "word_form",
+    "word_pattern",
+    "sentence",
+    "vietnamese",
+    "collocation",
+)
 
 
 class CardRequestError(ValueError):
@@ -56,6 +68,8 @@ def lookup(card_type: str, text: str, config: AddonConfig) -> dict[str, Any]:
     if card_type == "sentence":
         # The dialog pre-fills the English side with the looked-up sentence.
         return {**lookup_sentence(text, **kwargs), "sentence": text.strip()}
+    if card_type == "collocation":
+        return dict(lookup_collocations(text, **kwargs))
     raise CardRequestError([f"Unknown card type: {card_type}"])
 
 
@@ -126,6 +140,9 @@ def check_payload(card_type: str, payload: Any) -> Any:
         _require_no_problems(
             sentence_problems(payload["vietnamese"], payload["sentence"])
         )
+    elif card_type == "collocation":
+        _require_no_problems(collocation_problems(_dicts(payload.get("items"))))
+        _validated(payload, validate_collocation_payload)
     else:
         raise CardRequestError([f"Unknown card type: {card_type}"])
     return payload
@@ -160,5 +177,9 @@ def create_cards(
     if card_type == "sentence":
         return add_sentence_note(
             col, deck_id, payload["vietnamese"], payload["sentence"]
+        )
+    if card_type == "collocation":
+        return add_collocation_notes(
+            col, deck_id, payload["keyword"].strip(), payload["items"]
         )
     raise CardRequestError([f"Unknown card type: {card_type}"])

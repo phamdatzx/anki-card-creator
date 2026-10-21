@@ -6,6 +6,7 @@ export const CARD_TYPES = [
   "word_pattern",
   "sentence",
   "vietnamese",
+  "collocation",
 ] as const;
 
 export type CardType = (typeof CARD_TYPES)[number];
@@ -16,6 +17,7 @@ export const TYPE_LABELS: Record<CardType, string> = {
   word_pattern: "Word pattern",
   sentence: "Sentence",
   vietnamese: "Vietnamese → English",
+  collocation: "Collocation",
 };
 
 export const PLACEHOLDERS: Record<CardType, string> = {
@@ -24,6 +26,7 @@ export const PLACEHOLDERS: Record<CardType, string> = {
   word_pattern: "Enter a pattern (e.g. make a decision)…",
   sentence: "Enter an English sentence…",
   vietnamese: "Enter a Vietnamese word or meaning (e.g. quyết định)…",
+  collocation: "Enter a keyword (e.g. decision)…",
 };
 
 export const HINTS: Record<CardType, string> = {
@@ -33,6 +36,8 @@ export const HINTS: Record<CardType, string> = {
   sentence: "Sentence: translate an English sentence into Vietnamese.",
   vietnamese:
     "Vietnamese → English: find matching English words for a Vietnamese meaning.",
+  collocation:
+    "Collocation: find a keyword's common partner words; each ticked one becomes a gap card.",
 };
 
 export type Score = number | null;
@@ -79,12 +84,27 @@ export type WordPatternPayload = {
 /** The server adds the looked-up English sentence to the translation. */
 export type SentencePayload = { vietnamese: string; sentence: string };
 
+/** The blank the partner word goes in; `gap` must contain exactly one. */
+export const GAP_MARK = "___";
+
+export type CollocationItem = {
+  pattern: string;
+  collocation: string;
+  gap: string;
+  answer: string;
+  vietnamese: string;
+  usage: string;
+};
+
+export type CollocationPayload = { keyword: string; items: CollocationItem[] };
+
 export type LookupResponse =
   | { type: "normal"; payload: NormalPayload }
   | { type: "vietnamese"; payload: VietnamesePayload }
   | { type: "word_form"; payload: WordFormPayload }
   | { type: "word_pattern"; payload: WordPatternPayload }
-  | { type: "sentence"; payload: SentencePayload };
+  | { type: "sentence"; payload: SentencePayload }
+  | { type: "collocation"; payload: CollocationPayload };
 
 /** `cards` includes subdecks' cards, as deleting a deck removes those too. */
 export type Deck = { id: number; name: string; cards: number };

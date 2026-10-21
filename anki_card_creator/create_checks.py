@@ -9,6 +9,8 @@ from __future__ import annotations
 from typing import Any
 
 from .lookups.contracts import (
+    GAP_MARK,
+    CollocationItem,
     DefinitionResult,
     VietnameseResult,
     WordFormPayload,
@@ -71,6 +73,24 @@ def sentence_problems(vietnamese: str, sentence: str) -> list[str]:
     if not vietnamese.strip() or not sentence.strip():
         return ["Vietnamese meaning and English sentence are required."]
     return []
+
+
+def collocation_problems(selected: list[CollocationItem]) -> list[str]:
+    if not selected:
+        return ["Select at least one collocation."]
+    missing = [
+        str(item.get("collocation") or f"item {index + 1}")
+        for index, item in enumerate(selected)
+        if not str(item.get("answer") or "").strip()
+        or str(item.get("gap") or "").count(GAP_MARK) != 1
+    ]
+    if not missing:
+        return []
+    return [
+        f"Each collocation needs an answer and a gap sentence with exactly "
+        f"one {GAP_MARK}:",
+        *missing,
+    ]
 
 
 def problems_message(problems: list[str]) -> str:

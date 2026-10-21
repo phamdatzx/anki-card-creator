@@ -11,7 +11,7 @@ import {
   type Draft,
   type Picked,
 } from "./forms";
-import { DefinitionList, VietnameseList, WordFormPanel } from "./panels";
+import { CollocationList, DefinitionList, VietnameseList, WordFormPanel } from "./panels";
 import { asText, splitList } from "./text";
 import {
   CARD_TYPES,
@@ -19,6 +19,7 @@ import {
   PLACEHOLDERS,
   TYPE_LABELS,
   type CardType,
+  type CollocationItem,
   type DefinitionResult,
   type Deck,
   type LookupResponse,
@@ -33,7 +34,8 @@ type Result =
   | { type: "vietnamese"; query: string; items: Picked<VietnameseResult>[] }
   | { type: "word_form"; base: WordFormItem; root: Draft; others: Picked<WordFormItem>[] }
   | { type: "word_pattern"; draft: Draft }
-  | { type: "sentence"; draft: Draft };
+  | { type: "sentence"; draft: Draft }
+  | { type: "collocation"; keyword: string; items: Picked<CollocationItem>[] };
 
 type Status = { text: string; tone: "info" | "error" | "success" };
 
@@ -46,6 +48,15 @@ function savedDeckId(): number | null {
   } catch {
     return null;
   }
+}
+
+/** Keep each pattern's collocations together, patterns in first-seen order. */
+function byPattern(items: CollocationItem[]): CollocationItem[] {
+  const order = [...new Set(items.map((item) => item.pattern.trim().toLowerCase()))];
+  return [...items].sort(
+    (a, b) =>
+      order.indexOf(a.pattern.trim().toLowerCase()) - order.indexOf(b.pattern.trim().toLowerCase()),
+  );
 }
 
 function toResult(response: LookupResponse): { result: Result | null; message: string } {
@@ -81,6 +92,15 @@ function toResult(response: LookupResponse): { result: Result | null; message: s
         result: { type: "sentence", draft: { ...response.payload } },
         message: "Edit the translation if needed, then create.",
       };
+    case "collocation": {
+      const { keyword, items } = response.payload;
+      return items.length
+        ? {
+            result: { type: "collocation", keyword, items: picked(byPattern(items), false) },
+            message: "Tick the collocations to learn; each becomes one gap card.",
+          }
+        : { result: null, message: `No collocations found for "${keyword}".` };
+    }
   }
 }
 
@@ -107,6 +127,8 @@ function toPayload(result: Result): unknown {
     }
     case "sentence":
       return { vietnamese: result.draft.vietnamese, sentence: result.draft.sentence };
+    case "collocation":
+      return { keyword: result.keyword, items: checked(result.items) };
   }
 }
 
@@ -447,6 +469,12 @@ export default function App() {
           ) : null}
           {result.type === "word_pattern" ? (
             <FieldsForm fields={PATTERN_FIELDS} draft={result.draft} onChange={(draft) => setResult({ ...result, draft })} />
+          ) : null}
+          {result.type === "collocation" ? (
+            <>
+              <h2>{result.keyword}</h2>
+              <CollocationList items={result.items} onChange={(items) => setResult({ ...result, items })} />
+            </>
           ) : null}
           {result.type === "sentence" ? (
             <FieldsForm fields={SENTENCE_FIELDS} draft={result.draft} onChange={(draft) => setResult({ ...result, draft })} />

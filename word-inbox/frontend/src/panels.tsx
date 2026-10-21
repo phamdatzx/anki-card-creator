@@ -1,10 +1,16 @@
 /** Result panels mirroring the add-on dialog's stacked panels. */
 
 import { useState } from "react";
-import { DefinitionEditor, FamilyEditor, FieldsForm } from "./editors";
+import { CollocationEditor, DefinitionEditor, FamilyEditor, FieldsForm } from "./editors";
 import { WORD_FORM_FIELDS, picked, type Draft, type FieldSpec, type Picked } from "./forms";
 import { scoresCompact, wordFormSummaries } from "./text";
-import type { DefinitionResult, VietnameseResult, WordFormItem } from "./types";
+import {
+  GAP_MARK,
+  type CollocationItem,
+  type DefinitionResult,
+  type VietnameseResult,
+  type WordFormItem,
+} from "./types";
 
 function Scores({ item }: { item: { popularity: number | null; difficulty: number | null } }) {
   const text = scoresCompact(item);
@@ -223,5 +229,49 @@ export function WordFormPanel({
         )}
       />
     </div>
+  );
+}
+
+function GapWithAnswer({ gap, answer }: { gap: string; answer: string }) {
+  const [before, ...rest] = gap.split(GAP_MARK);
+  if (rest.length !== 1) {
+    return <>{gap}</>;
+  }
+  return (
+    <>
+      {before}
+      <mark className="answer">{answer || "?"}</mark>
+      {rest[0]}
+    </>
+  );
+}
+
+export function CollocationList({
+  items,
+  onChange,
+}: {
+  items: Picked<CollocationItem>[];
+  onChange: (next: Picked<CollocationItem>[]) => void;
+}) {
+  return (
+    <PickList
+      items={items}
+      onChange={onChange}
+      render={(item) => (
+        <>
+          <div className="pick-title">
+            <span className="badge">{item.pattern || "?"}</span> <strong>{item.collocation}</strong>
+          </div>
+          {item.vietnamese ? <div className="vi">{item.vietnamese}</div> : null}
+          <div className="gap-line">
+            <GapWithAnswer gap={item.gap} answer={item.answer} />
+          </div>
+          {item.usage ? <div className="meta">{item.usage}</div> : null}
+        </>
+      )}
+      editor={(item, save, cancel) => (
+        <CollocationEditor value={item} onSave={save} onCancel={cancel} />
+      )}
+    />
   );
 }
