@@ -93,6 +93,19 @@ class CollocationPayload(TypedDict):
     items: list[CollocationItem]
 
 
+class PhraseSense(TypedDict):
+    structure: str
+    definition: str
+    vietnamese: str
+    examples: list[str]
+    usage: str
+
+
+class PhrasePayload(TypedDict):
+    phrase: str
+    results: list[PhraseSense]
+
+
 def _mapping(value: Any, path: str) -> dict[str, Any]:
     if not isinstance(value, dict):
         raise ValueError(f"{path} must be an object")
@@ -284,3 +297,21 @@ def validate_collocation_payload(value: Any) -> CollocationPayload:
         if item["gap"].count(GAP_MARK) != 1:
             raise ValueError(f"{path}.gap must contain exactly one {GAP_MARK}")
     return cast(CollocationPayload, payload)
+
+
+def validate_phrase_payload(value: Any) -> PhrasePayload:
+    payload = _mapping(value, "response")
+    _require(payload, ("phrase", "results"), "response")
+    _nonempty_string(payload["phrase"], "response.phrase")
+    if not isinstance(payload["results"], list):
+        raise ValueError("response.results must be a list")
+    required = ("structure", "definition", "vietnamese", "examples", "usage")
+    for index, raw in enumerate(payload["results"]):
+        path = f"response.results[{index}]"
+        item = _mapping(raw, path)
+        _require(item, required, path)
+        for key in ("structure", "vietnamese", "usage"):
+            _string(item[key], f"{path}.{key}")
+        _nonempty_string(item["definition"], f"{path}.definition")
+        _string_list(item["examples"], f"{path}.examples")
+    return cast(PhrasePayload, payload)

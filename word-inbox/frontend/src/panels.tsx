@@ -1,13 +1,20 @@
 /** Result panels mirroring the add-on dialog's stacked panels. */
 
 import { useState } from "react";
-import { CollocationEditor, DefinitionEditor, FamilyEditor, FieldsForm } from "./editors";
+import {
+  CollocationEditor,
+  DefinitionEditor,
+  FamilyEditor,
+  FieldsForm,
+  PhraseEditor,
+} from "./editors";
 import { WORD_FORM_FIELDS, picked, type Draft, type FieldSpec, type Picked } from "./forms";
 import { scoresCompact, wordFormSummaries } from "./text";
 import {
   GAP_MARK,
   type CollocationItem,
   type DefinitionResult,
+  type PhraseSense,
   type VietnameseResult,
   type WordFormItem,
 } from "./types";
@@ -271,6 +278,42 @@ export function CollocationList({
       )}
       editor={(item, save, cancel) => (
         <CollocationEditor value={item} onSave={save} onCancel={cancel} />
+      )}
+    />
+  );
+}
+
+export function PhraseList({
+  phrase,
+  items,
+  onChange,
+}: {
+  phrase: string;
+  items: Picked<PhraseSense>[];
+  onChange: (next: Picked<PhraseSense>[]) => void;
+}) {
+  return (
+    <PickList
+      items={items}
+      onChange={onChange}
+      render={(item) => (
+        <>
+          <div className="pick-title">
+            <span className="badge">{item.structure || "?"}</span> {item.definition}
+          </div>
+          {item.vietnamese ? <div className="vi">{item.vietnamese}</div> : null}
+          {item.examples.length ? (
+            <ul className="examples">
+              {item.examples.map((example, index) => (
+                <li key={index}>{example}</li>
+              ))}
+            </ul>
+          ) : null}
+          {item.usage ? <div className="meta">{item.usage}</div> : null}
+        </>
+      )}
+      editor={(item, save, cancel) => (
+        <PhraseEditor value={item} phrase={phrase} onSave={save} onCancel={cancel} />
       )}
     />
   );

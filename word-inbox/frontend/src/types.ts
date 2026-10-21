@@ -7,6 +7,7 @@ export const CARD_TYPES = [
   "sentence",
   "vietnamese",
   "collocation",
+  "phrase",
 ] as const;
 
 export type CardType = (typeof CARD_TYPES)[number];
@@ -18,6 +19,7 @@ export const TYPE_LABELS: Record<CardType, string> = {
   sentence: "Sentence",
   vietnamese: "Vietnamese → English",
   collocation: "Collocation",
+  phrase: "Phrase",
 };
 
 export const PLACEHOLDERS: Record<CardType, string> = {
@@ -27,6 +29,7 @@ export const PLACEHOLDERS: Record<CardType, string> = {
   sentence: "Enter an English sentence…",
   vietnamese: "Enter a Vietnamese word or meaning (e.g. quyết định)…",
   collocation: "Enter a keyword (e.g. decision)…",
+  phrase: "Enter a phrase (e.g. sharp fall)…",
 };
 
 export const HINTS: Record<CardType, string> = {
@@ -38,6 +41,7 @@ export const HINTS: Record<CardType, string> = {
     "Vietnamese → English: find matching English words for a Vietnamese meaning.",
   collocation:
     "Collocation: find a keyword's common partner words; each ticked one becomes a gap card.",
+  phrase: "Phrase: look up a phrase's meanings; each ticked one becomes a recall card.",
 };
 
 export type Score = number | null;
@@ -98,13 +102,24 @@ export type CollocationItem = {
 
 export type CollocationPayload = { keyword: string; items: CollocationItem[] };
 
+export type PhraseSense = {
+  structure: string;
+  definition: string;
+  vietnamese: string;
+  examples: string[];
+  usage: string;
+};
+
+export type PhrasePayload = { phrase: string; results: PhraseSense[] };
+
 export type LookupResponse =
   | { type: "normal"; payload: NormalPayload }
   | { type: "vietnamese"; payload: VietnamesePayload }
   | { type: "word_form"; payload: WordFormPayload }
   | { type: "word_pattern"; payload: WordPatternPayload }
   | { type: "sentence"; payload: SentencePayload }
-  | { type: "collocation"; payload: CollocationPayload };
+  | { type: "collocation"; payload: CollocationPayload }
+  | { type: "phrase"; payload: PhrasePayload };
 
 /** `cards` includes subdecks' cards, as deleting a deck removes those too. */
 export type Deck = { id: number; name: string; cards: number };

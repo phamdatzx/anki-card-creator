@@ -4,8 +4,8 @@ A single-user web app that does what the Anki Card Creator add-on dialog does,
 without desktop Anki:
 
 1. Pick a card type (Normal, Word form, Word pattern, Sentence,
-   Vietnamese → English, Collocation), type a word or sentence, and click
-   **Look up**.
+   Vietnamese → English, Collocation, Phrase), type a word or sentence, and
+   click **Look up**.
 2. Review the results like in the add-on: tick definitions or related forms,
    click **Edit** to change any field in a popup, then **Create cards**
    (Ctrl+Enter).
@@ -23,6 +23,16 @@ without desktop Anki:
 - The back shows the answer, the full collocation, the completed sentence and
   a usage note.
 - When you edit an item, its gap sentence must keep exactly one `___`.
+- These cards have no audio.
+
+**Phrase** is also Word Inbox only:
+- Type a whole phrase such as `sharp fall`. You get its common meanings.
+- Tick the ones you want. Each one becomes a `VIP Phrase` card. A phrase with a
+  single meaning is ticked for you.
+- The front shows the structure (`adjective + noun`), an English definition,
+  the Vietnamese gloss and first-letter hints (`s___ f___`). You recall the
+  phrase itself.
+- The back shows the phrase, examples and a usage note.
 - These cards have no audio.
 
 **Manage** next to the deck picker opens the deck manager:

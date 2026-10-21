@@ -97,3 +97,16 @@ export const COLLOCATION_FIELDS: FieldSpec[] = [
   { key: "vietnamese", label: "Vietnamese" },
   { key: "usage", label: "Usage note", placeholder: "e.g. formal, written" },
 ];
+
+export const PHRASE_FIELDS: FieldSpec[] = [
+  { key: "structure", label: "Structure", placeholder: "e.g. adjective + noun" },
+  {
+    key: "definition",
+    label: "Definition (front)",
+    multiline: true,
+    placeholder: "Don't use the phrase's own words",
+  },
+  { key: "vietnamese", label: "Vietnamese" },
+  { key: "examples", label: "Examples", multiline: true, placeholder: "one example per line" },
+  { key: "usage", label: "Usage note", placeholder: "e.g. news, business" },
+];

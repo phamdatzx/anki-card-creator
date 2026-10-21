@@ -9,6 +9,7 @@ import pytest
 from anki_card_creator.lookups.contracts import (
     CollocationPayload,
     NormalPayload,
+    PhrasePayload,
     SentencePayload,
     VietnamesePayload,
     WordFormPayload,
@@ -21,6 +22,7 @@ from anki_card_creator.lookups.contracts import (
 from anki_card_creator.lookups.schemas import (
     COLLOCATION_SCHEMA,
     NORMAL_SCHEMA,
+    PHRASE_SCHEMA,
     SENTENCE_SCHEMA,
     VIETNAMESE_SCHEMA,
     WORD_FORM_SCHEMA,
@@ -38,6 +40,7 @@ def test_payload_contracts_match_schema_top_level_keys():
         (SentencePayload, SENTENCE_SCHEMA),
         (VietnamesePayload, VIETNAMESE_SCHEMA),
         (CollocationPayload, COLLOCATION_SCHEMA),
+        (PhrasePayload, PHRASE_SCHEMA),
     )
     for contract, schema in pairs:
         assert set(get_type_hints(contract)) == set(schema["properties"])
