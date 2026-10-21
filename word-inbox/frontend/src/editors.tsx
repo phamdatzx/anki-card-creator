@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import {
+  COLLOCATION_FIELDS,
   SCORE_FIELDS,
   WORD_FORM_FIELDS,
   wordFormDraft,
@@ -11,7 +12,13 @@ import {
 } from "./forms";
 import { Modal } from "./modal";
 import { asText, parseScore, scoreText, splitList } from "./text";
-import type { DefinitionResult, VietnameseResult, WordFormItem } from "./types";
+import {
+  GAP_MARK,
+  type CollocationItem,
+  type DefinitionResult,
+  type VietnameseResult,
+  type WordFormItem,
+} from "./types";
 
 export function FieldsForm({
   fields,
@@ -158,6 +165,41 @@ export function FamilyEditor({
       onCancel={onCancel}
     >
       <FieldsForm fields={WORD_FORM_FIELDS} draft={draft} onChange={setDraft} />
+    </EditorShell>
+  );
+}
+
+export function CollocationEditor({
+  value,
+  onSave,
+  onCancel,
+}: {
+  value: CollocationItem;
+  onSave: (next: CollocationItem) => void;
+  onCancel: () => void;
+}) {
+  const [draft, setDraft] = useState<Draft>(() => ({ ...value }));
+  const blanks = draft.gap.split(GAP_MARK).length - 1;
+  function save() {
+    onSave({
+      pattern: draft.pattern.trim(),
+      collocation: draft.collocation.trim(),
+      gap: draft.gap.trim(),
+      answer: draft.answer.trim(),
+      vietnamese: draft.vietnamese.trim(),
+      usage: draft.usage.trim(),
+    });
+  }
+  return (
+    <EditorShell
+      title={value.collocation ? `Edit collocation — ${value.collocation}` : "Edit collocation"}
+      onSave={save}
+      onCancel={onCancel}
+    >
+      <FieldsForm fields={COLLOCATION_FIELDS} draft={draft} onChange={setDraft} />
+      {blanks !== 1 ? (
+        <p className="error">The gap sentence needs exactly one {GAP_MARK}.</p>
+      ) : null}
     </EditorShell>
   );
 }

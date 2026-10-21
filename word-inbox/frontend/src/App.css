@@ -450,3 +450,15 @@ button:disabled {
     padding: 0.9rem;
   }
 }
+
+.gap-line {
+  margin-top: 0.3rem;
+}
+
+mark.answer {
+  padding: 0 0.2em;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  color: inherit;
+  font-weight: 600;
+}

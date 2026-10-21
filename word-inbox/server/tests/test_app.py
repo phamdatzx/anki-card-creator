@@ -160,3 +160,88 @@ def test_word_form_and_sentence_cards(client: TestClient):
     with _collection(client) as col:
         assert len(col.find_notes('"note:VIP Word Form"')) == 2
         assert len(col.find_notes('"note:VIP Sentence"')) == 1
+
+
+COLLOCATIONS = {
+    "keyword": "decision",
+    "items": [
+        {
+            "pattern": "verb + decision",
+            "collocation": "make a decision",
+            "gap": "She finally ___ a decision to move abroad.",
+            "answer": "made",
+            "vietnamese": "đưa ra quyết định",
+            "usage": "neutral, very common",
+        },
+        {
+            "pattern": "adjective + decision",
+            "collocation": "a tough decision",
+            "gap": "It was a ___ decision for the whole family.",
+            "answer": "tough",
+            "vietnamese": "quyết định khó khăn",
+            "usage": "informal",
+        },
+        {
+            "pattern": "decision + preposition",
+            "collocation": "decision on",
+            "gap": "We need a decision ___ the budget.",
+            "answer": "on",
+            "vietnamese": "quyết định về",
+            "usage": "neutral",
+        },
+    ],
+}
+
+
+def test_collocation_lookup_then_create_one_note_per_item(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+):
+    def fake_chat(**kwargs: Any) -> dict[str, Any]:
+        assert kwargs["schema_name"] == "collocation_lookup"
+        assert kwargs["user"] == "Keyword: decision"
+        return COLLOCATIONS
+
+    monkeypatch.setattr("anki_card_creator.lookups.collocation.chat_json", fake_chat)
+    found = client.post("/api/lookup", json={"type": "collocation", "input": "decision"})
+    assert found.status_code == 200, found.text
+    payload = found.json()["payload"]
+    assert len(payload["items"]) == 3
+
+    payload["items"] = payload["items"][:2]
+    payload["items"][1]["usage"] = "edited usage"
+    deck_id = client.get("/api/decks").json()["defaultDeckId"]
+    created = client.post(
+        "/api/cards", json={"type": "collocation", "deckId": deck_id, "payload": payload}
+    )
+    assert created.status_code == 200, created.text
+    assert created.json()["added"] == 2
+
+    with _collection(client) as col:
+        notes = [col.get_note(nid) for nid in col.find_notes('"note:VIP Collocation"')]
+        by_answer = {note["Answer"]: note for note in notes}
+        assert set(by_answer) == {"made", "tough"}
+        made = by_answer["made"]
+        assert made["Keyword"] == "decision"
+        assert made["Pattern"] == "verb + decision"
+        assert made["Gap"] == "She finally ___ a decision to move abroad."
+        assert made["Sentence"] == "She finally <b>made</b> a decision to move abroad."
+        assert made["Collocation"] == "make a decision"
+        assert by_answer["tough"]["Usage"] == "edited usage"
+        assert made.cards()[0].did == deck_id
+
+
+def test_collocation_create_reports_problems(client: TestClient):
+    deck_id = client.get("/api/decks").json()["defaultDeckId"]
+
+    def post(payload: dict[str, Any]):
+        return client.post(
+            "/api/cards", json={"type": "collocation", "deckId": deck_id, "payload": payload}
+        )
+
+    none = post({"keyword": "decision", "items": []})
+    assert none.status_code == 400
+    assert none.json()["detail"] == "Select at least one collocation."
+    broken = {**COLLOCATIONS["items"][0], "gap": "She made a decision."}
+    bad = post({"keyword": "decision", "items": [broken]})
+    assert bad.status_code == 400
+    assert bad.json()["detail"].endswith("• make a decision")

@@ -83,3 +83,17 @@ export const SENTENCE_FIELDS: FieldSpec[] = [
   { key: "vietnamese", label: "Vietnamese (front)", multiline: true },
   { key: "sentence", label: "English (back)", multiline: true },
 ];
+
+export const COLLOCATION_FIELDS: FieldSpec[] = [
+  { key: "pattern", label: "Pattern", placeholder: "e.g. verb + decision" },
+  { key: "collocation", label: "Collocation", placeholder: "e.g. make a decision" },
+  {
+    key: "gap",
+    label: "Gap sentence (front)",
+    multiline: true,
+    placeholder: "Put ___ where the partner word goes",
+  },
+  { key: "answer", label: "Answer", placeholder: "Text that fills the ___" },
+  { key: "vietnamese", label: "Vietnamese" },
+  { key: "usage", label: "Usage note", placeholder: "e.g. formal, written" },
+];

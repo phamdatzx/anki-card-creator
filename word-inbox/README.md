@@ -4,13 +4,26 @@ A single-user web app that does what the Anki Card Creator add-on dialog does,
 without desktop Anki:
 
 1. Pick a card type (Normal, Word form, Word pattern, Sentence,
-   Vietnamese → English), type a word or sentence, and click **Look up**.
+   Vietnamese → English, Collocation), type a word or sentence, and click
+   **Look up**.
 2. Review the results like in the add-on: tick definitions or related forms,
    click **Edit** to change any field in a popup, then **Create cards**
    (Ctrl+Enter).
 3. The server generates the pronunciation audio, adds the notes to the deck
    you chose, and syncs with **AnkiWeb**. Your phone and desktop get the cards
    on their next sync.
+
+**Collocation** is only in Word Inbox, not in the desktop add-on:
+- Type a keyword such as `decision`. You get its common collocations grouped by
+  pattern (verb + decision, adjective + decision, decision + preposition, …).
+- Tick the ones you want. Each one becomes its own card in the `VIP Collocation`
+  note type.
+- The front shows the pattern, a sentence with the partner word blanked out
+  (`She finally ___ a decision…`) and a Vietnamese hint.
+- The back shows the answer, the full collocation, the completed sentence and
+  a usage note.
+- When you edit an item, its gap sentence must keep exactly one `___`.
+- These cards have no audio.
 
 **Manage** next to the deck picker opens the deck manager:
 - **Create** a deck. Use `Parent::Child` to make a subdeck.

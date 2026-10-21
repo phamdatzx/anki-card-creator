@@ -169,3 +169,27 @@ SENTENCE_SCHEMA: dict[str, Any] = {
     },
     "required": ["vietnamese"],
 }
+
+COLLOCATION_ITEM: dict[str, Any] = {
+    "type": "object",
+    "additionalProperties": False,
+    "properties": {
+        "pattern": {"type": "string"},
+        "collocation": {"type": "string"},
+        "gap": {"type": "string"},
+        "answer": {"type": "string"},
+        "vietnamese": {"type": "string"},
+        "usage": {"type": "string"},
+    },
+    "required": ["pattern", "collocation", "gap", "answer", "vietnamese", "usage"],
+}
+
+COLLOCATION_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "additionalProperties": False,
+    "properties": {
+        "keyword": {"type": "string"},
+        "items": {"type": "array", "items": COLLOCATION_ITEM},
+    },
+    "required": ["keyword", "items"],
+}

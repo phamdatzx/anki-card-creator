@@ -76,6 +76,23 @@ class SentencePayload(TypedDict):
     vietnamese: str
 
 
+GAP_MARK = "___"
+
+
+class CollocationItem(TypedDict):
+    pattern: str
+    collocation: str
+    gap: str
+    answer: str
+    vietnamese: str
+    usage: str
+
+
+class CollocationPayload(TypedDict):
+    keyword: str
+    items: list[CollocationItem]
+
+
 def _mapping(value: Any, path: str) -> dict[str, Any]:
     if not isinstance(value, dict):
         raise ValueError(f"{path} must be an object")
@@ -247,3 +264,23 @@ def validate_sentence_payload(value: Any) -> SentencePayload:
     _require(payload, ("vietnamese",), "response")
     _string(payload["vietnamese"], "response.vietnamese")
     return cast(SentencePayload, payload)
+
+
+def validate_collocation_payload(value: Any) -> CollocationPayload:
+    payload = _mapping(value, "response")
+    _require(payload, ("keyword", "items"), "response")
+    _nonempty_string(payload["keyword"], "response.keyword")
+    if not isinstance(payload["items"], list):
+        raise ValueError("response.items must be a list")
+    required = ("pattern", "collocation", "gap", "answer", "vietnamese", "usage")
+    for index, raw in enumerate(payload["items"]):
+        path = f"response.items[{index}]"
+        item = _mapping(raw, path)
+        _require(item, required, path)
+        for key in ("pattern", "vietnamese", "usage"):
+            _string(item[key], f"{path}.{key}")
+        for key in ("collocation", "gap", "answer"):
+            _nonempty_string(item[key], f"{path}.{key}")
+        if item["gap"].count(GAP_MARK) != 1:
+            raise ValueError(f"{path}.gap must contain exactly one {GAP_MARK}")
+    return cast(CollocationPayload, payload)
