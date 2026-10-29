@@ -224,17 +224,6 @@ button:disabled {
   gap: 0.75rem;
 }
 
-.summary {
-  padding: 0.7rem 0.9rem;
-  border-radius: 12px;
-  background: color-mix(in srgb, var(--accent) 10%, transparent);
-}
-
-.summary ul {
-  margin: 0.3rem 0 0;
-  padding-left: 1.2rem;
-}
-
 .picks {
   list-style: none;
   margin: 0;
@@ -497,4 +486,12 @@ mark.answer {
 
 .part.off .pick-body {
   opacity: 0.45;
+}
+
+.input-note {
+  margin: -0.3rem 0 0.8rem;
+}
+
+.family-title {
+  margin: 1.2rem 0 0.2rem;
 }

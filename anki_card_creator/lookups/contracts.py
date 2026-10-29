@@ -26,8 +26,11 @@ class GroupedDefinitionResult(DefinitionResult):
 
 
 class NormalGroupedPayload(TypedDict):
+    input: str
     word: str
+    inputNote: str
     results: list[GroupedDefinitionResult]
+    family: list[VietnameseResult]
 
 
 class VietnameseResult(TypedDict):
@@ -329,10 +332,29 @@ def validate_phrase_payload(value: Any) -> PhrasePayload:
 
 
 def validate_normal_grouped_payload(value: Any) -> NormalGroupedPayload:
-    validate_normal_payload(value)
-    for index, item in enumerate(value["results"]):
+    payload = _mapping(value, "response")
+    _require(payload, ("input", "word", "inputNote", "results", "family"), "response")
+    _string(payload["input"], "response.input")
+    _nonempty_string(payload["word"], "response.word")
+    _string(payload["inputNote"], "response.inputNote")
+    validate_normal_payload({"word": payload["word"], "results": payload["results"]})
+    for index, item in enumerate(payload["results"]):
         path = f"response.results[{index}].group"
         group = item.get("group")
         if isinstance(group, bool) or not isinstance(group, int) or group < 1:
             raise ValueError(f"{path} must be a positive integer")
-    return cast(NormalGroupedPayload, value)
+    validate_vietnamese_payload({"query": payload["word"], "results": payload["family"]})
+    root = payload["word"].strip().casefold()
+    seen: set[tuple[str, str]] = set()
+    for index, member in enumerate(payload["family"]):
+        path = f"response.family[{index}]"
+        key = (
+            member["word"].strip().casefold(),
+            member["partOfSpeech"].strip().casefold(),
+        )
+        if key[0] == root:
+            raise ValueError(f"{path}.word must not repeat the root word")
+        if key in seen:
+            raise ValueError(f"{path} repeats an earlier family member")
+        seen.add(key)
+    return cast(NormalGroupedPayload, payload)

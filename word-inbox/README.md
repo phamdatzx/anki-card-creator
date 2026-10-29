@@ -3,15 +3,25 @@
 A single-user web app that does what the Anki Card Creator add-on dialog does,
 without desktop Anki:
 
-1. Pick a card type (Normal, Word form, Word pattern, Sentence,
-   Vietnamese → English, Collocation, Phrase), type a word or sentence, and
-   click **Look up**.
+1. Pick a card type (Normal, Word pattern, Sentence, Vietnamese → English,
+   Collocation, Phrase), type a word or sentence, and click **Look up**.
 2. Review the results like in the add-on: tick definitions or related forms,
    click **Edit** to change any field in a popup, then **Create cards**
    (Ctrl+Enter).
 3. The server generates the pronunciation audio, adds the notes to the deck
    you chose, and syncs with **AnkiWeb**. Your phone and desktop get the cards
    on their next sync.
+
+**Normal finds the root word and its family.** You can type any form of a
+word. An inflected form (`deciding`, `children`, `better`) is reduced to its
+dictionary headword (`decide`, `child`, `good`), and the page shows "You
+entered: deciding (-ing form of decide)". The cards are about the headword.
+Below them, a **Word family** list offers the other words of the same root,
+for example decision (n), decisive (adj), decisively (adv). Each has its own
+meaning, Vietnamese and example, and each one you tick becomes its own Normal
+card. This replaces the Word form card type, which Word Inbox no longer has.
+The desktop add-on keeps Word form, and existing `VIP Word Form` cards are
+untouched.
 
 **Normal cards can cover related parts of speech.** Word Inbox's Normal
 lookup groups senses that share one meaning across parts of speech. For example
@@ -242,11 +252,19 @@ All routes except login and health need `Authorization: Bearer <token>`.
 | `POST` | `/api/cards` | `{type, deckId, payload}` → `{added, deck, sync}`; `400` with the add-on's messages when something is missing |
 | `POST` | `/api/sync` | `{forceDownload?}` → `{sync}` |
 
-For `/api/cards`, `payload` holds what you selected and edited: Normal
-`{word, results}`, Vietnamese → English `{query, results}`, Word form
-`{rootWord, other}`, Word pattern the lookup fields, Sentence
-`{vietnamese, sentence}`. `type` is one of `normal`, `word_form`,
-`word_pattern`, `sentence`, or `vietnamese`.
+For `/api/cards`, `payload` holds what you selected and edited:
+- Normal: `{word, groups, family}`. `groups` lists the root's cards, each a
+  list of senses. `family` lists the family words you picked.
+- Vietnamese → English: `{query, results}`.
+- Word pattern: the lookup fields.
+- Sentence: `{vietnamese, sentence}`.
+- Collocation: `{keyword, items}`.
+- Phrase: `{phrase, results}`.
+
+`type` is one of `normal`, `word_pattern`, `sentence`, `vietnamese`,
+`collocation` or `phrase`.
+
+The Normal lookup returns `{input, word, inputNote, groups, family}`.
 
 ## Local development
 

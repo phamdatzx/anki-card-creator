@@ -22,26 +22,16 @@ DEFINITION = {
 }
 
 
-def _form(word: str, pos: str) -> dict[str, Any]:
-    return {
-        "word": word,
-        "type": pos,
-        "definition": f"{word} meaning",
-        "vietnamese": "vi",
-        "examples": [f"An example with {word}."],
-        "ipa": "",
-        "popularity": None,
-        "difficulty": None,
-    }
-
-
 @pytest.fixture
 def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     def fake_chat(**kwargs: Any) -> dict[str, Any]:
         assert kwargs["api_key"] == "sk-test"
         assert kwargs["schema_name"] == "vocabulary_entry_grouped_lookup"
         return {
+            "input": "decide",
             "word": "decide",
+            "inputNote": "",
+            "family": [],
             "results": [
                 {**DEFINITION, "group": 1},
                 {**DEFINITION, "definition": "to settle a dispute", "group": 2},
@@ -136,10 +126,10 @@ def test_create_reports_problems(client: TestClient):
     old_shape = post("normal", {"word": "decide", "results": [DEFINITION]})
     assert old_shape.status_code == 400
 
-    incomplete_root = {**_form("decide", "verb"), "examples": []}
-    forms = post("word_form", {"rootWord": incomplete_root, "other": [_form("decision", "noun")]})
-    assert forms.status_code == 400
-    assert "• root word" in forms.json()["detail"]
+    # Word form is add-on only now; Word Inbox refuses it.
+    assert post("word_form", {"rootWord": {}, "other": []}).status_code == 400
+    lookup_form = client.post("/api/lookup", json={"type": "word_form", "input": "x"})
+    assert lookup_form.status_code == 400
 
     blank_word = post("vietnamese", {"query": "q", "results": [{**DEFINITION, "word": ""}]})
     assert blank_word.json()["detail"] == "Each selected result needs a word:\n• result 1"
@@ -153,17 +143,8 @@ def test_create_reports_problems(client: TestClient):
     assert client.post("/api/lookup", json={"type": "nope", "input": "x"}).status_code == 400
 
 
-def test_word_form_and_sentence_cards(client: TestClient):
+def test_sentence_card(client: TestClient):
     deck_id = client.get("/api/decks").json()["defaultDeckId"]
-    payload = {
-        "rootWord": _form("decide", "verb"),
-        "other": [_form("decision", "noun"), _form("decisive", "adjective")],
-    }
-    forms = client.post(
-        "/api/cards", json={"type": "word_form", "deckId": deck_id, "payload": payload}
-    )
-    assert forms.status_code == 200, forms.text
-    assert forms.json()["added"] == 2
     sentence = client.post(
         "/api/cards",
         json={
@@ -174,7 +155,6 @@ def test_word_form_and_sentence_cards(client: TestClient):
     )
     assert sentence.json()["added"] == 1
     with _collection(client) as col:
-        assert len(col.find_notes('"note:VIP Word Form"')) == 2
         assert len(col.find_notes('"note:VIP Sentence"')) == 1
 
 
@@ -379,7 +359,10 @@ def test_related_parts_of_speech_become_one_card(
 
     def fake_chat(**_kwargs: Any) -> dict[str, Any]:
         return {
+            "input": "test",
             "word": "test",
+            "inputNote": "",
+            "family": [],
             "results": [
                 {**TEST_VERB, "group": 1},
                 {**TEST_NOUN, "group": 1},
@@ -419,3 +402,79 @@ def test_related_parts_of_speech_become_one_card(
         assert combined["Synonyms"] == "check, try, exam"
         assert "<li>(n) I passed the driving test.</li>" in combined["Examples"]
         assert combined["Audio"].count("[sound:") == 2
+
+
+def _member(word: str, pos: str, vietnamese: str) -> dict[str, Any]:
+    return {
+        **DEFINITION,
+        "word": word,
+        "partOfSpeech": pos,
+        "definition": f"{word} meaning",
+        "vietnamese": vietnamese,
+        "examples": [f"An example with {word}."],
+    }
+
+
+def test_inflected_input_gives_root_cards_and_family(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+):
+    seen: dict[str, Any] = {}
+
+    def fake_chat(**kwargs: Any) -> dict[str, Any]:
+        seen.update(kwargs)
+        return {
+            "input": "whatever the model echoes",
+            "word": "decide",
+            "inputNote": "-ing form of decide",
+            "results": [{**DEFINITION, "group": 1}],
+            "family": [
+                _member("decision", "noun", "quyết định"),
+                _member("decisive", "adjective", "quyết đoán"),
+                _member("decisively", "adverb", "một cách quyết đoán"),
+            ],
+        }
+
+    monkeypatch.setattr("anki_card_creator.lookups.normal.chat_json", fake_chat)
+    found = client.post("/api/lookup", json={"type": "normal", "input": " deciding "})
+    assert found.status_code == 200, found.text
+    payload = found.json()["payload"]
+    assert seen["user"] == "Vocabulary entry: deciding"
+    assert "CHECK before answering" in seen["system"]
+    assert payload["input"] == "deciding"  # what was typed, not the model's echo
+    assert payload["word"] == "decide"
+    assert payload["inputNote"] == "-ing form of decide"
+    assert [m["word"] for m in payload["family"]] == ["decision", "decisive", "decisively"]
+
+    deck_id = client.get("/api/decks").json()["defaultDeckId"]
+
+    def create(body: dict[str, Any]):
+        return client.post(
+            "/api/cards", json={"type": "normal", "deckId": deck_id, "payload": body}
+        )
+
+    picked = {**payload, "family": [payload["family"][0], payload["family"][1]]}
+    created = create(picked)
+    assert created.status_code == 200, created.text
+    assert created.json()["added"] == 3  # 1 root card + 2 family cards
+
+    family_only = create({"word": "decide", "groups": [], "family": [payload["family"][2]]})
+    assert family_only.json()["added"] == 1
+
+    nothing = create({"word": "decide", "groups": [], "family": []})
+    assert nothing.status_code == 400
+    assert nothing.json()["detail"] == "Select at least one definition."
+    blank = create({"word": "decide", "groups": [], "family": [{**payload["family"][0], "word": ""}]})
+    assert blank.status_code == 400
+    assert blank.json()["detail"].endswith("• family member 1")
+
+    with _collection(client) as col:
+        notes = [col.get_note(nid) for nid in col.find_notes('"note:VIP Translate"')]
+        by_word: dict[str, list[Any]] = {}
+        for note in notes:
+            by_word.setdefault(note["Word"], []).append(note)
+        assert sorted(by_word) == ["decide", "decision", "decisive", "decisively"]
+        decision = by_word["decision"][0]
+        assert decision["PartOfSpeech"] == "noun"
+        assert decision["Vietnamese"] == "quyết định"
+        assert decision["Audio"].startswith("[sound:anki-card-creator-")
+        assert by_word["decide"][0]["Definition"] == DEFINITION["definition"]

@@ -1,8 +1,5 @@
 /** Editable-form helpers shared by the editors and panels. */
 
-import { asText, parseScore, scoreText, splitList } from "./text";
-import type { WordFormItem } from "./types";
-
 export type FieldSpec = {
   key: string;
   label: string;
@@ -15,48 +12,6 @@ export type Draft = Record<string, string>;
 export const SCORE_FIELDS: FieldSpec[] = [
   { key: "popularity", label: "Popularity (1–5)", placeholder: "1–5" },
   { key: "difficulty", label: "Difficulty (1–5)", placeholder: "1–5" },
-];
-
-export function wordFormDraft(item: WordFormItem): Draft {
-  return {
-    word: item.word,
-    type: item.type,
-    ipa: item.ipa,
-    vietnamese: item.vietnamese,
-    definition: item.definition,
-    examples: asText(item.examples, true),
-    popularity: scoreText(item.popularity),
-    difficulty: scoreText(item.difficulty),
-  };
-}
-
-export function wordFormFromDraft(original: WordFormItem, draft: Draft): WordFormItem {
-  return {
-    ...original,
-    word: draft.word.trim(),
-    type: draft.type.trim(),
-    ipa: draft.ipa.trim(),
-    vietnamese: draft.vietnamese.trim(),
-    definition: draft.definition.trim(),
-    examples: splitList(draft.examples, true),
-    popularity: parseScore(draft.popularity),
-    difficulty: parseScore(draft.difficulty),
-  };
-}
-
-export const WORD_FORM_FIELDS: FieldSpec[] = [
-  { key: "word", label: "Word" },
-  { key: "type", label: "Type" },
-  { key: "ipa", label: "IPA", placeholder: "/ˈwɜrd/" },
-  { key: "vietnamese", label: "Vietnamese", placeholder: "Required" },
-  { key: "definition", label: "Definition", multiline: true, placeholder: "Required" },
-  {
-    key: "examples",
-    label: "Examples",
-    multiline: true,
-    placeholder: "Required; one example per line",
-  },
-  ...SCORE_FIELDS,
 ];
 
 export type Picked<T> = { key: string; checked: boolean; data: T };

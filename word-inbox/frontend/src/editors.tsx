@@ -1,13 +1,10 @@
-/** Popup versions of the add-on's DefinitionDetailDialog and FamilyMemberDialog. */
+/** Popup editors, like the add-on's DefinitionDetailDialog. */
 
 import { useState } from "react";
 import {
   COLLOCATION_FIELDS,
   PHRASE_FIELDS,
   SCORE_FIELDS,
-  WORD_FORM_FIELDS,
-  wordFormDraft,
-  wordFormFromDraft,
   type Draft,
   type FieldSpec,
 } from "./forms";
@@ -19,7 +16,6 @@ import {
   type DefinitionResult,
   type PhraseSense,
   type VietnameseResult,
-  type WordFormItem,
 } from "./types";
 
 export function FieldsForm({
@@ -146,27 +142,6 @@ export function DefinitionEditor<T extends DefinitionResult | VietnameseResult>(
       onCancel={onCancel}
     >
       <FieldsForm fields={fields} draft={draft} onChange={setDraft} />
-    </EditorShell>
-  );
-}
-
-export function FamilyEditor({
-  value,
-  onSave,
-  onCancel,
-}: {
-  value: WordFormItem;
-  onSave: (next: WordFormItem) => void;
-  onCancel: () => void;
-}) {
-  const [draft, setDraft] = useState<Draft>(() => wordFormDraft(value));
-  return (
-    <EditorShell
-      title={value.word ? `Edit word form — ${value.word}` : "Add word form"}
-      onSave={() => onSave(wordFormFromDraft(value, draft))}
-      onCancel={onCancel}
-    >
-      <FieldsForm fields={WORD_FORM_FIELDS} draft={draft} onChange={setDraft} />
     </EditorShell>
   );
 }
