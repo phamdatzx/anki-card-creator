@@ -107,6 +107,15 @@ def phrase_problems(phrase: str, selected: list[PhraseSense]) -> list[str]:
     return ["Each selected meaning needs a definition:", *missing] if missing else []
 
 
+def definition_group_problems(groups: list[list[DefinitionResult]]) -> list[str]:
+    """Word Inbox's grouped Normal cards: each group becomes one card."""
+    if not groups:
+        return ["Select at least one definition."]
+    if any(not group for group in groups):
+        return ["Each selected card needs at least one part of speech."]
+    return []
+
+
 def problems_message(problems: list[str]) -> str:
     head, *bullets = problems
     return "\n".join([head, *(f"• {label}" for label in bullets)])

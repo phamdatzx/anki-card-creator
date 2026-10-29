@@ -9,7 +9,7 @@ from anki_card_creator.audio import definition_audio_tags, word_form_audio
 from anki_card_creator.config import AddonConfig, chat_kwargs
 from anki_card_creator.create_checks import (
     collocation_problems,
-    definition_problems,
+    definition_group_problems,
     phrase_problems,
     sentence_problems,
     vietnamese_problems,
@@ -25,14 +25,17 @@ from anki_card_creator.lookups.contracts import (
     validate_word_form_payload,
     validate_word_pattern_payload,
 )
-from anki_card_creator.lookups.normal import lookup_normal_word
+from anki_card_creator.lookups.normal import lookup_normal_grouped
 from anki_card_creator.lookups.phrase import lookup_phrase
 from anki_card_creator.lookups.sentence import lookup_sentence
 from anki_card_creator.lookups.vietnamese import lookup_vietnamese_word
 from anki_card_creator.lookups.word_form import lookup_word_form
 from anki_card_creator.lookups.word_pattern import lookup_word_pattern
 from anki_card_creator.notes.collocation import add_collocation_notes
-from anki_card_creator.notes.normal import add_definition_notes
+from anki_card_creator.notes.normal import (
+    add_definition_group_notes,
+    add_definition_notes,
+)
 from anki_card_creator.notes.phrase import add_phrase_notes
 from anki_card_creator.notes.sentence import add_sentence_note
 from anki_card_creator.notes.word_form import add_word_form_notes
@@ -64,7 +67,7 @@ def lookup(card_type: str, text: str, config: AddonConfig) -> dict[str, Any]:
     """Run the add-on lookup for ``card_type``; raises ``OpenAIError``."""
     kwargs = chat_kwargs(config)
     if card_type == "normal":
-        return dict(lookup_normal_word(text, **kwargs))
+        return _grouped(lookup_normal_grouped(text, **kwargs))
     if card_type == "word_form":
         return dict(lookup_word_form(text, **kwargs))
     if card_type == "word_pattern":
@@ -79,6 +82,15 @@ def lookup(card_type: str, text: str, config: AddonConfig) -> dict[str, Any]:
     if card_type == "phrase":
         return dict(lookup_phrase(text, **kwargs))
     raise CardRequestError([f"Unknown card type: {card_type}"])
+
+
+def _grouped(payload: Any) -> dict[str, Any]:
+    """{word, results+group} -> {word, groups}, groups in first-seen order."""
+    groups: dict[int, list[dict[str, Any]]] = {}
+    for result in payload["results"]:
+        sense = {key: value for key, value in result.items() if key != "group"}
+        groups.setdefault(result["group"], []).append(sense)
+    return {"word": payload["word"], "groups": list(groups.values())}
 
 
 def _scores_filled(value: Any) -> Any:
@@ -125,8 +137,15 @@ def check_payload(card_type: str, payload: Any) -> Any:
     if not isinstance(payload, dict):
         raise CardRequestError(["Invalid payload: expected an object."])
     if card_type == "normal":
-        _validated(payload, validate_normal_payload)
-        _require_no_problems(definition_problems(payload["results"]))
+        # Word Inbox groups related senses into one card; see _grouped.
+        groups = payload.get("groups")
+        if not isinstance(groups, list) or not all(isinstance(g, list) for g in groups):
+            raise CardRequestError(["Invalid payload: groups must be a list of lists."])
+        _require_no_problems(definition_group_problems(groups))
+        _validated(
+            {"word": payload.get("word"), "results": [s for g in groups for s in g]},
+            validate_normal_payload,
+        )
     elif card_type == "vietnamese":
         _require_no_problems(vietnamese_problems(_dicts(payload.get("results"))))
         _validated(payload, validate_vietnamese_payload)
@@ -177,9 +196,12 @@ def create_cards(
     write_data = col.media.write_data
     if card_type == "normal":
         word = str(payload.get("word") or "")
-        results = payload["results"]
-        tags = definition_audio_tags(word, results, config, write_data, on_progress)
-        return add_definition_notes(col, deck_id, word, "", "", tags, results)
+        groups = payload["groups"]
+        # One clip per part of speech, then split back into the groups.
+        flat = [sense for group in groups for sense in group]
+        tags = iter(definition_audio_tags(word, flat, config, write_data, on_progress))
+        grouped_tags = [[next(tags) for _sense in group] for group in groups]
+        return add_definition_group_notes(col, deck_id, word, groups, grouped_tags)
     if card_type == "vietnamese":
         results = payload["results"]
         tags = definition_audio_tags("", results, config, write_data, on_progress)

@@ -58,6 +58,10 @@ CARD_CSS = """\
   font-size: 1.15em;
   line-height: 1.5;
 }
+.definition-prompt .sense-line {
+  text-align: left;
+  margin: 0.3em 0;
+}
 .definition-vietnamese {
   text-align: center;
   margin-top: 0.35em;

@@ -61,6 +61,9 @@ export type VietnameseResult = DefinitionResult & { word: string };
 
 export type NormalPayload = { word: string; results: DefinitionResult[] };
 
+/** Word Inbox's Normal lookup: related senses share a group, one card each. */
+export type NormalGroupedPayload = { word: string; groups: DefinitionResult[][] };
+
 export type VietnamesePayload = { query: string; results: VietnameseResult[] };
 
 export type WordFormItem = {
@@ -113,7 +116,7 @@ export type PhraseSense = {
 export type PhrasePayload = { phrase: string; results: PhraseSense[] };
 
 export type LookupResponse =
-  | { type: "normal"; payload: NormalPayload }
+  | { type: "normal"; payload: NormalGroupedPayload }
   | { type: "vietnamese"; payload: VietnamesePayload }
   | { type: "word_form"; payload: WordFormPayload }
   | { type: "word_pattern"; payload: WordPatternPayload }

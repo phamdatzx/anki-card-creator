@@ -13,6 +13,21 @@ without desktop Anki:
    you chose, and syncs with **AnkiWeb**. Your phone and desktop get the cards
    on their next sync.
 
+**Normal cards can cover related parts of speech.** Word Inbox's Normal
+lookup groups senses that share one meaning across parts of speech. For example
+`test` as a verb (kiểm tra) and as a noun (bài kiểm tra) go together, while
+unrelated meanings stay separate.
+- Each box in the results is one card. Tick the cards you want.
+- Inside a box, untick a part to leave it out, or press **Split** to make one
+  card per part.
+- A combined card is still a `VIP Translate` note with the same fields:
+  - the front lists each part as `verb …` / `noun …` lines
+  - Vietnamese and examples are labelled `(v)` / `(n)`
+  - synonyms are merged
+  - each part gets its own pronunciation clip
+- A box with a single part makes exactly the same card as before.
+- The desktop add-on's Normal dialog still makes one card per sense.
+
 **Collocation** is only in Word Inbox, not in the desktop add-on:
 - Type a keyword such as `decision`. You get its common collocations grouped by
   pattern (verb + decision, adjective + decision, decision + preposition, …).
