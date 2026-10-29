@@ -3,6 +3,7 @@ import type {
   CreateResponse,
   Deck,
   LookupResponse,
+  ModelState,
   SyncState,
 } from "./types";
 
@@ -127,6 +128,14 @@ export function deleteDeck(
   id: number,
 ): Promise<{ deleted: { name: string; cards: number }; sync: SyncState }> {
   return request(`/decks/${id}`, undefined, true, "DELETE");
+}
+
+export function getModel(): Promise<ModelState> {
+  return request("/model");
+}
+
+export function setModel(model: string): Promise<ModelState> {
+  return request("/model", { model }, true, "PUT");
 }
 
 export function sync(forceDownload = false): Promise<{ sync: SyncState }> {

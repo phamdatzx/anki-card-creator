@@ -30,6 +30,7 @@ import {
   type DefinitionResult,
   type Deck,
   type LookupResponse,
+  type ModelState,
   type SyncState,
   type VietnameseResult,
   type WordFormItem,
@@ -213,11 +214,12 @@ export default function App() {
   const [input, setInput] = useState("");
   const [result, setResult] = useState<Result | null>(null);
   const [status, setStatus] = useState<Status>({ text: HINTS.normal, tone: "info" });
-  const [busy, setBusy] = useState<"" | "lookup" | "create" | "sync">("");
+  const [busy, setBusy] = useState<"" | "lookup" | "create" | "sync" | "model">("");
   const [decks, setDecks] = useState<Deck[]>([]);
   const [deckId, setDeckId] = useState<number | null>(savedDeckId);
   const [sync, setSync] = useState<SyncState | null>(null);
   const [managingDecks, setManagingDecks] = useState(false);
+  const [models, setModels] = useState<ModelState | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   // undefined until the first status arrives, so decks load even without sync.
   const lastSyncAt = useRef<number | null | undefined>(undefined);
@@ -261,10 +263,14 @@ export default function App() {
       return;
     }
     const refresh = () =>
-      api.status().then(
-        (data) => applySync(data.sync),
-        (err: unknown) => fail(err, "Could not load status"),
-      );
+      Promise.all([
+        api.status().then(
+          (data) => applySync(data.sync),
+          (err: unknown) => fail(err, "Could not load status"),
+        ),
+        // Polled too, so a server restart (back to the default) shows up here.
+        api.getModel().then(setModels, (err: unknown) => fail(err, "Could not load models")),
+      ]);
     void refresh();
     const timer = window.setInterval(refresh, 30_000);
     return () => window.clearInterval(timer);
@@ -279,6 +285,24 @@ export default function App() {
       // Remembering the deck is a convenience only.
     }
   }, [deckId]);
+
+  async function chooseModel(next: string) {
+    if (!models || next === models.model) {
+      return;
+    }
+    const previous = models;
+    setModels({ ...models, model: next });
+    setBusy("model");
+    try {
+      setModels(await api.setModel(next));
+      setStatus({ text: `Lookups now use ${next}.`, tone: "success" });
+    } catch (err) {
+      setModels(previous);
+      fail(err, "Could not change the model");
+    } finally {
+      setBusy("");
+    }
+  }
 
   function chooseType(next: CardType) {
     setCardType(next);
@@ -416,6 +440,27 @@ export default function App() {
               Manage
             </button>
           </div>
+        </div>
+        <div className="field inline">
+          <label htmlFor="model">Model</label>
+          <select
+            id="model"
+            value={models?.model ?? ""}
+            onChange={(e) => void chooseModel(e.target.value)}
+            disabled={busy !== "" || !models || models.choices.length < 2}
+            title={
+              models && models.choices.length < 2
+                ? "Add more models to OPENAI_MODELS on the server to switch"
+                : "Used for lookups until the server restarts"
+            }
+          >
+            {!models ? <option value="">Loading…</option> : null}
+            {models?.choices.map((name) => (
+              <option key={name} value={name}>
+                {name === models.default ? `${name} (default)` : name}
+              </option>
+            ))}
+          </select>
         </div>
         <div className="sync">
           <span className={sync?.ok === false ? "sync-label bad" : "sync-label"} title={sync?.message}>

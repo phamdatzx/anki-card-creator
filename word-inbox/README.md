@@ -201,6 +201,7 @@ All settings are environment variables; see [`.env.example`](.env.example).
 | `APP_PASSWORD` | — (required) | Web login password |
 | `APP_SECRET` | random, kept in `data/app_secret` | Signs 30-day login tokens |
 | `OPENAI_API_KEY`, `OPENAI_MODEL`, `OPENAI_BASE_URL`, `OPENAI_TTS_MODEL`, `OPENAI_TTS_VOICE` | same defaults as the add-on | Lookups and pronunciation audio |
+| `OPENAI_MODELS` | just `OPENAI_MODEL` | Comma-separated models for the page's **Model** dropdown. The dropdown starts on `OPENAI_MODEL`, and a choice made there lasts until the app restarts or redeploys. It applies to lookups only; audio keeps using `OPENAI_TTS_MODEL`. |
 | `VERIFY_SSL` | `true` | TLS certificate checks for the API |
 | `ANKIWEB_USERNAME`, `ANKIWEB_PASSWORD` | empty (sync off) | AnkiWeb account |
 | `DEFAULT_DECK` | `Default` | Deck selected when the page has no saved choice |
@@ -215,6 +216,8 @@ All routes except login and health need `Authorization: Bearer <token>`.
 | --- | --- | --- |
 | `POST` | `/api/login` | `{password}` → `{token}` |
 | `GET` | `/api/health` | → `{ok}` |
+| `GET` | `/api/model` | → `{model, default, choices}` |
+| `PUT` | `/api/model` | `{model}` → same; `400` if it isn't in `OPENAI_MODELS` |
 | `GET` | `/api/decks` | → `{decks: [{id, name, cards}], defaultDeckId}` (`cards` includes subdecks) |
 | `POST` | `/api/decks` | `{name}` → `201 {deck, sync}`; `409` if the name is taken |
 | `PATCH` | `/api/decks/{id}` | `{name}` → `{deck, sync}` |
