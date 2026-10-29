@@ -35,6 +35,10 @@ class CardsBody(BaseModel):
     payload: dict[str, Any]
 
 
+class ModelBody(BaseModel):
+    model: str
+
+
 class DeckBody(BaseModel):
     name: str
 
@@ -65,6 +69,10 @@ def create_app(
 
     app = FastAPI(title="Word Inbox", lifespan=lifespan)
     app.state.store = store
+    default_model = settings.config["openai_model"]
+    model_choices = settings.model_choices or (default_model,)
+    # In memory on purpose: a restart or redeploy goes back to OPENAI_MODEL.
+    app.state.model = default_model
 
     def require_token(authorization: Annotated[str, Header()] = "") -> None:
         scheme, _, token = authorization.partition(" ")
@@ -93,6 +101,26 @@ def create_app(
     @app.get("/api/status", dependencies=authed)
     def status() -> dict[str, Any]:
         return {"sync": store.sync_state.as_json()}
+
+    def _model_state() -> dict[str, Any]:
+        return {
+            "model": app.state.model,
+            "default": default_model,
+            "choices": list(model_choices),
+        }
+
+    @app.get("/api/model", dependencies=authed)
+    def get_model() -> dict[str, Any]:
+        return _model_state()
+
+    @app.put("/api/model", dependencies=authed)
+    def set_model(body: ModelBody) -> dict[str, Any]:
+        if body.model not in model_choices:
+            raise HTTPException(
+                400, f"{body.model} is not in OPENAI_MODELS on the server."
+            )
+        app.state.model = body.model
+        return _model_state()
 
     @app.get("/api/decks", dependencies=authed)
     def decks() -> dict[str, Any]:
@@ -126,7 +154,8 @@ def create_app(
     def lookup_route(body: LookupBody) -> dict[str, Any]:
         card_type = _card_type(body.type)
         try:
-            payload = lookup(card_type, body.input, settings.config)
+            config = {**settings.config, "openai_model": app.state.model}
+            payload = lookup(card_type, body.input, config)  # type: ignore[arg-type]
         except OpenAIError as exc:
             raise HTTPException(502, str(exc)) from exc
         return {"type": card_type, "payload": payload}

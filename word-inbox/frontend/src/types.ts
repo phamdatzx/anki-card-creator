@@ -124,6 +124,9 @@ export type LookupResponse =
 /** `cards` includes subdecks' cards, as deleting a deck removes those too. */
 export type Deck = { id: number; name: string; cards: number };
 
+/** The server keeps `model` in memory; a restart goes back to `default`. */
+export type ModelState = { model: string; default: string; choices: string[] };
+
 export type SyncState = {
   enabled: boolean;
   at: number | null;
