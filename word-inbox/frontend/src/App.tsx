@@ -6,8 +6,6 @@ import {
   PATTERN_FIELDS,
   SENTENCE_FIELDS,
   picked,
-  wordFormDraft,
-  wordFormFromDraft,
   type Draft,
   type Picked,
 } from "./forms";
@@ -17,7 +15,6 @@ import {
   type DefinitionGroup,
   PhraseList,
   VietnameseList,
-  WordFormPanel,
 } from "./panels";
 import { asText, splitList } from "./text";
 import {
@@ -33,14 +30,19 @@ import {
   type ModelState,
   type SyncState,
   type VietnameseResult,
-  type WordFormItem,
 } from "./types";
 import "./App.css";
 
 type Result =
-  | { type: "normal"; word: string; groups: DefinitionGroup[] }
+  | {
+      type: "normal";
+      input: string;
+      inputNote: string;
+      word: string;
+      groups: DefinitionGroup[];
+      family: Picked<VietnameseResult>[];
+    }
   | { type: "vietnamese"; query: string; items: Picked<VietnameseResult>[] }
-  | { type: "word_form"; base: WordFormItem; root: Draft; others: Picked<WordFormItem>[] }
   | { type: "word_pattern"; draft: Draft }
   | { type: "sentence"; draft: Draft }
   | { type: "collocation"; keyword: string; items: Picked<CollocationItem>[] }
@@ -71,20 +73,23 @@ function byPattern(items: CollocationItem[]): CollocationItem[] {
 function toResult(response: LookupResponse): { result: Result | null; message: string } {
   switch (response.type) {
     case "normal": {
-      const { word, groups } = response.payload;
-      return groups.length
+      const { input, inputNote, word, groups, family } = response.payload;
+      return groups.length || family.length
         ? {
             // Cards start unticked as before; the parts inside a card start ticked.
             result: {
               type: "normal",
+              input,
+              inputNote,
               word,
               groups: picked(
                 groups.map((parts) => picked(parts, true)),
                 false,
               ),
+              family: picked(family, false),
             },
             message:
-              "Each box is one card; related parts of speech share one. Tick cards, untick or Split parts, Edit to change.",
+              "Each box is one card; related parts of speech share one. Tick the root's cards and any family words to learn.",
           }
         : { result: null, message: `No definitions for "${word}".` };
     }
@@ -93,13 +98,6 @@ function toResult(response: LookupResponse): { result: Result | null; message: s
       return results.length
         ? { result: { type: "vietnamese", query, items: picked(results, false) }, message: "Select matching words; click Edit to change one." }
         : { result: null, message: `No matching English words for "${query}".` };
-    }
-    case "word_form": {
-      const { rootWord, other } = response.payload;
-      return {
-        result: { type: "word_form", base: rootWord, root: wordFormDraft(rootWord), others: picked(other, true) },
-        message: "Check related forms; one card is created per type (e.g. nouns, verbs).",
-      };
     }
     case "word_pattern": {
       const payload = response.payload;
@@ -148,11 +146,13 @@ function toPayload(result: Result): unknown {
     items.filter((item) => item.checked).map((item) => item.data);
   switch (result.type) {
     case "normal":
-      return { word: result.word, groups: normalGroups(result.groups) };
+      return {
+        word: result.word,
+        groups: normalGroups(result.groups),
+        family: checked(result.family),
+      };
     case "vietnamese":
       return { query: result.query, results: checked(result.items) };
-    case "word_form":
-      return { rootWord: wordFormFromDraft(result.base, result.root), other: checked(result.others) };
     case "word_pattern": {
       const draft = result.draft;
       return {
@@ -421,7 +421,7 @@ export default function App() {
   const canCreate =
     result !== null &&
     (result.type === "normal"
-      ? normalGroups(result.groups).length > 0
+      ? normalGroups(result.groups).length > 0 || result.family.some((item) => item.checked)
       : !("items" in result && result.items.every((item) => !item.checked)));
 
   return (
@@ -540,22 +540,29 @@ export default function App() {
           {result.type === "normal" ? (
             <>
               <h2>{result.word}</h2>
+              {result.inputNote ? (
+                <p className="muted input-note">
+                  You entered: <strong>{result.input}</strong> ({result.inputNote})
+                </p>
+              ) : null}
               <DefinitionGroupList
                 groups={result.groups}
                 onChange={(groups) => setResult({ ...result, groups })}
               />
+              {result.family.length ? (
+                <>
+                  <h3 className="family-title">Word family</h3>
+                  <p className="muted small-text">Each word you tick becomes its own card.</p>
+                  <VietnameseList
+                    items={result.family}
+                    onChange={(family) => setResult({ ...result, family })}
+                  />
+                </>
+              ) : null}
             </>
           ) : null}
           {result.type === "vietnamese" ? (
             <VietnameseList items={result.items} onChange={(items) => setResult({ ...result, items })} />
-          ) : null}
-          {result.type === "word_form" ? (
-            <WordFormPanel
-              root={result.root}
-              onRoot={(root) => setResult({ ...result, root })}
-              others={result.others}
-              onOthers={(others) => setResult({ ...result, others })}
-            />
           ) : null}
           {result.type === "word_pattern" ? (
             <FieldsForm fields={PATTERN_FIELDS} draft={result.draft} onChange={(draft) => setResult({ ...result, draft })} />

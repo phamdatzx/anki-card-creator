@@ -116,6 +116,27 @@ def definition_group_problems(groups: list[list[DefinitionResult]]) -> list[str]
     return []
 
 
+def normal_problems(
+    groups: list[list[DefinitionResult]], family: list[VietnameseResult]
+) -> list[str]:
+    """Word Inbox's Normal: root cards (groups) plus picked family members."""
+    if not groups and not family:
+        return ["Select at least one definition."]
+    if groups:
+        found = definition_group_problems(groups)
+        if found:
+            return found
+    if family:
+        missing = [
+            f"family member {index + 1}"
+            for index, member in enumerate(family)
+            if not str(member.get("word") or "").strip()
+        ]
+        if missing:
+            return ["Each selected family member needs a word:", *missing]
+    return []
+
+
 def problems_message(problems: list[str]) -> str:
     head, *bullets = problems
     return "\n".join([head, *(f"• {label}" for label in bullets)])

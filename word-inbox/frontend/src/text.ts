@@ -1,6 +1,6 @@
-/** Ports of anki_card_creator/text.py, ui/formatting.py and notes/word_form.py. */
+/** Ports of anki_card_creator/text.py and ui/formatting.py. */
 
-import type { Score, WordFormItem } from "./types";
+import type { Score } from "./types";
 
 export function asText(values: string[] | undefined, multiline = false): string {
   return (values ?? []).filter(Boolean).join(multiline ? "\n" : ", ");
@@ -35,38 +35,4 @@ export function scoresCompact(item: { popularity: Score; difficulty: Score }): s
     parts.push(`hard ${item.difficulty}/5`);
   }
   return parts.join(" · ");
-}
-
-const POS_ABBREV: Record<string, string> = {
-  noun: "N",
-  verb: "V",
-  adjective: "adj",
-  adverb: "adv",
-  preposition: "prep",
-  conjunction: "conj",
-  interjection: "interj",
-  pronoun: "pron",
-  determiner: "det",
-};
-
-function posAbbrev(pos: string): string {
-  const cleaned = pos.trim();
-  return cleaned ? (POS_ABBREV[cleaned.toLowerCase()] ?? cleaned) : "?";
-}
-
-function posCount(count: number, abbrev: string): string {
-  return abbrev.length <= 1 ? `${count}${abbrev}` : `${count} ${abbrev}`;
-}
-
-/** One card per part of speech among the checked forms. */
-export function wordFormSummaries(root: WordFormItem, others: WordFormItem[]): string[] {
-  const groups = new Map<string, WordFormItem[]>();
-  for (const item of others) {
-    const key = item.type.trim().toLowerCase() || "?";
-    groups.set(key, [...(groups.get(key) ?? []), item]);
-  }
-  const rootLabel = `${root.word} (${posAbbrev(root.type)})`;
-  return [...groups.values()].map(
-    (items) => `${rootLabel}, ${posCount(items.length, posAbbrev(items[0].type))}`,
-  );
 }

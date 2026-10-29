@@ -231,8 +231,13 @@ NORMAL_GROUPED_SCHEMA: dict[str, Any] = {
     "type": "object",
     "additionalProperties": False,
     "properties": {
+        # What was typed, the root it was reduced to, and how they relate.
+        "input": {"type": "string"},
         "word": {"type": "string"},
+        "inputNote": {"type": "string"},
         "results": {"type": "array", "items": GROUPED_DEFINITION_RESULT},
+        # Other words of the root's family; each can become its own card.
+        "family": {"type": "array", "items": VIETNAMESE_RESULT},
     },
-    "required": ["word", "results"],
+    "required": ["input", "word", "inputNote", "results", "family"],
 }

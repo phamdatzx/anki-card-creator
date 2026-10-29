@@ -2,7 +2,6 @@
 
 export const CARD_TYPES = [
   "normal",
-  "word_form",
   "word_pattern",
   "sentence",
   "vietnamese",
@@ -14,7 +13,6 @@ export type CardType = (typeof CARD_TYPES)[number];
 
 export const TYPE_LABELS: Record<CardType, string> = {
   normal: "Normal",
-  word_form: "Word form",
   word_pattern: "Word pattern",
   sentence: "Sentence",
   vietnamese: "Vietnamese → English",
@@ -23,8 +21,7 @@ export const TYPE_LABELS: Record<CardType, string> = {
 };
 
 export const PLACEHOLDERS: Record<CardType, string> = {
-  normal: "Enter a word or phrasal verb…",
-  word_form: "Enter a word (any form)…",
+  normal: "Enter a word in any form (e.g. deciding)…",
   word_pattern: "Enter a pattern (e.g. make a decision)…",
   sentence: "Enter an English sentence…",
   vietnamese: "Enter a Vietnamese word or meaning (e.g. quyết định)…",
@@ -33,8 +30,7 @@ export const PLACEHOLDERS: Record<CardType, string> = {
 };
 
 export const HINTS: Record<CardType, string> = {
-  normal: "Normal: look up senses and select definitions.",
-  word_form: "Word form: find a root and related forms.",
+  normal: "Normal: finds the root word, its meanings and its word family.",
   word_pattern: "Word pattern: create a contextual gap fill.",
   sentence: "Sentence: translate an English sentence into Vietnamese.",
   vietnamese:
@@ -61,23 +57,20 @@ export type VietnameseResult = DefinitionResult & { word: string };
 
 export type NormalPayload = { word: string; results: DefinitionResult[] };
 
-/** Word Inbox's Normal lookup: related senses share a group, one card each. */
-export type NormalGroupedPayload = { word: string; groups: DefinitionResult[][] };
-
-export type VietnamesePayload = { query: string; results: VietnameseResult[] };
-
-export type WordFormItem = {
+/**
+ * Word Inbox's Normal lookup: `input` is reduced to its root `word`; related
+ * senses share a group (one card each); `family` lists other words of the
+ * same root, each of which can become its own card.
+ */
+export type NormalGroupedPayload = {
+  input: string;
   word: string;
-  type: string;
-  definition: string;
-  vietnamese: string;
-  examples: string[];
-  ipa: string;
-  popularity: Score;
-  difficulty: Score;
+  inputNote: string;
+  groups: DefinitionResult[][];
+  family: VietnameseResult[];
 };
 
-export type WordFormPayload = { rootWord: WordFormItem; other: WordFormItem[] };
+export type VietnamesePayload = { query: string; results: VietnameseResult[] };
 
 export type WordPatternPayload = {
   gap: string;
@@ -118,7 +111,6 @@ export type PhrasePayload = { phrase: string; results: PhraseSense[] };
 export type LookupResponse =
   | { type: "normal"; payload: NormalGroupedPayload }
   | { type: "vietnamese"; payload: VietnamesePayload }
-  | { type: "word_form"; payload: WordFormPayload }
   | { type: "word_pattern"; payload: WordPatternPayload }
   | { type: "sentence"; payload: SentencePayload }
   | { type: "collocation"; payload: CollocationPayload }
