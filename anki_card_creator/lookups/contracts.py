@@ -19,6 +19,17 @@ class NormalPayload(TypedDict):
     results: list[DefinitionResult]
 
 
+class GroupedDefinitionResult(DefinitionResult):
+    """A sense plus the card it shares with related senses (Word Inbox)."""
+
+    group: int
+
+
+class NormalGroupedPayload(TypedDict):
+    word: str
+    results: list[GroupedDefinitionResult]
+
+
 class VietnameseResult(TypedDict):
     word: str
     definition: str
@@ -315,3 +326,13 @@ def validate_phrase_payload(value: Any) -> PhrasePayload:
         _nonempty_string(item["definition"], f"{path}.definition")
         _string_list(item["examples"], f"{path}.examples")
     return cast(PhrasePayload, payload)
+
+
+def validate_normal_grouped_payload(value: Any) -> NormalGroupedPayload:
+    validate_normal_payload(value)
+    for index, item in enumerate(value["results"]):
+        path = f"response.results[{index}].group"
+        group = item.get("group")
+        if isinstance(group, bool) or not isinstance(group, int) or group < 1:
+            raise ValueError(f"{path} must be a positive integer")
+    return cast(NormalGroupedPayload, value)

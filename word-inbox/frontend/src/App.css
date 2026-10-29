@@ -462,3 +462,39 @@ mark.answer {
   color: inherit;
   font-weight: 600;
 }
+
+.pick.group {
+  display: block;
+}
+
+.group-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.group-label {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.parts {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.part {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px dashed var(--line);
+}
+
+.part.off .pick-body {
+  opacity: 0.45;
+}

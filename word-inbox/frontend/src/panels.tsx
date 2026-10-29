@@ -103,22 +103,117 @@ function Definition({ item, word }: { item: DefinitionResult; word?: string }) {
   );
 }
 
-export function DefinitionList({
-  items,
+/** One Normal card per group; related parts of speech share a group. */
+export type DefinitionGroup = Picked<Picked<DefinitionResult>[]>;
+
+export function DefinitionGroupList({
+  groups,
   onChange,
 }: {
-  items: Picked<DefinitionResult>[];
-  onChange: (next: Picked<DefinitionResult>[]) => void;
+  groups: DefinitionGroup[];
+  onChange: (next: DefinitionGroup[]) => void;
 }) {
+  const [editing, setEditing] = useState<{ group: string; part: string } | null>(null);
+  const setGroup = (key: string, patch: Partial<DefinitionGroup>) =>
+    onChange(groups.map((group) => (group.key === key ? { ...group, ...patch } : group)));
+  const setPart = (groupKey: string, partKey: string, patch: Partial<Picked<DefinitionResult>>) =>
+    onChange(
+      groups.map((group) =>
+        group.key === groupKey
+          ? {
+              ...group,
+              data: group.data.map((part) => (part.key === partKey ? { ...part, ...patch } : part)),
+            }
+          : group,
+      ),
+    );
+  const split = (key: string) =>
+    onChange(
+      groups.flatMap((group) =>
+        group.key === key
+          ? group.data.map((part) => ({
+              key: crypto.randomUUID(),
+              checked: group.checked,
+              data: [{ ...part, checked: true }],
+            }))
+          : [group],
+      ),
+    );
+  const current = editing
+    ? groups
+        .find((group) => group.key === editing.group)
+        ?.data.find((part) => part.key === editing.part)
+    : undefined;
   return (
-    <PickList
-      items={items}
-      onChange={onChange}
-      render={(item) => <Definition item={item} />}
-      editor={(item, save, cancel) => (
-        <DefinitionEditor value={item} editableWord={false} onSave={save} onCancel={cancel} />
-      )}
-    />
+    <>
+      <ul className="picks">
+        {groups.map((group) => {
+          const parts = group.data.filter((part) => part.checked);
+          const label = parts.map((part) => part.data.partOfSpeech || "?").join(" + ");
+          return (
+            <li key={group.key} className={group.checked ? "pick group checked" : "pick group"}>
+              <div className="group-head">
+                <label className="pick-main">
+                  <input
+                    type="checkbox"
+                    checked={group.checked}
+                    onChange={(e) => setGroup(group.key, { checked: e.target.checked })}
+                    aria-label={`Create card: ${label || "no parts"}`}
+                  />
+                  <span className="group-label">
+                    1 card · {label || "no part ticked"}
+                  </span>
+                </label>
+                {group.data.length > 1 ? (
+                  <button type="button" className="ghost small" onClick={() => split(group.key)}>
+                    Split
+                  </button>
+                ) : null}
+              </div>
+              <ul className="parts">
+                {group.data.map((part) => (
+                  <li key={part.key} className={part.checked ? "part" : "part off"}>
+                    <label className="pick-main">
+                      {group.data.length > 1 ? (
+                        <input
+                          type="checkbox"
+                          checked={part.checked}
+                          onChange={(e) =>
+                            setPart(group.key, part.key, { checked: e.target.checked })
+                          }
+                          aria-label={`Include ${part.data.partOfSpeech || "this part"}`}
+                        />
+                      ) : null}
+                      <div className="pick-body">
+                        <Definition item={part.data} />
+                      </div>
+                    </label>
+                    <button
+                      type="button"
+                      className="ghost small"
+                      onClick={() => setEditing({ group: group.key, part: part.key })}
+                    >
+                      Edit
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </li>
+          );
+        })}
+      </ul>
+      {editing && current ? (
+        <DefinitionEditor
+          value={current.data}
+          editableWord={false}
+          onSave={(next) => {
+            setPart(editing.group, editing.part, { data: next });
+            setEditing(null);
+          }}
+          onCancel={() => setEditing(null)}
+        />
+      ) : null}
+    </>
   );
 }
 

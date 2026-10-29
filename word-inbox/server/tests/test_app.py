@@ -39,7 +39,14 @@ def _form(word: str, pos: str) -> dict[str, Any]:
 def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     def fake_chat(**kwargs: Any) -> dict[str, Any]:
         assert kwargs["api_key"] == "sk-test"
-        return {"word": "decide", "results": [DEFINITION, DEFINITION]}
+        assert kwargs["schema_name"] == "vocabulary_entry_grouped_lookup"
+        return {
+            "word": "decide",
+            "results": [
+                {**DEFINITION, "group": 1},
+                {**DEFINITION, "definition": "to settle a dispute", "group": 2},
+            ],
+        }
 
     monkeypatch.setattr("anki_card_creator.lookups.normal.chat_json", fake_chat)
     monkeypatch.setattr(
@@ -80,12 +87,14 @@ def test_lookup_then_create_writes_notes_with_audio(client: TestClient):
     assert found.status_code == 200
     payload = found.json()["payload"]
     assert payload["word"] == "decide"
+    assert [len(group) for group in payload["groups"]] == [1, 1]
+    assert "group" not in payload["groups"][0][0]
 
     decks = client.get("/api/decks").json()
     deck_id = decks["defaultDeckId"]
     assert deck_id is not None
-    payload["results"] = payload["results"][:1]
-    payload["results"][0]["definition"] = "edited definition"
+    payload["groups"] = payload["groups"][:1]
+    payload["groups"][0][0]["definition"] = "edited definition"
     created = client.post(
         "/api/cards", json={"type": "normal", "deckId": deck_id, "payload": payload}
     )
@@ -101,6 +110,9 @@ def test_lookup_then_create_writes_notes_with_audio(client: TestClient):
         note = col.get_note(note_ids[0])
         assert note["Word"] == "decide"
         assert note["Definition"] == "edited definition"
+        # A one-part group is written exactly like before grouping existed.
+        assert note["PartOfSpeech"] == "verb"
+        assert note["Vietnamese"] == "quyết định"
         assert note["Audio"].startswith("[sound:anki-card-creator-")
 
 
@@ -116,9 +128,13 @@ def test_create_reports_problems(client: TestClient):
             "/api/cards", json={"type": card_type, "deckId": deck, "payload": payload}
         )
 
-    empty = post("normal", {"word": "decide", "results": []})
+    empty = post("normal", {"word": "decide", "groups": []})
     assert empty.status_code == 400
     assert empty.json()["detail"] == "Select at least one definition."
+    hollow = post("normal", {"word": "decide", "groups": [[DEFINITION], []]})
+    assert hollow.json()["detail"] == "Each selected card needs at least one part of speech."
+    old_shape = post("normal", {"word": "decide", "results": [DEFINITION]})
+    assert old_shape.status_code == 400
 
     incomplete_root = {**_form("decide", "verb"), "examples": []}
     forms = post("word_form", {"rootWord": incomplete_root, "other": [_form("decision", "noun")]})
@@ -332,3 +348,74 @@ def test_phrase_create_reports_problems(client: TestClient):
     bad = post({"phrase": "sharp fall", "results": [empty_definition]})
     assert bad.status_code == 400
     assert bad.json()["detail"].endswith("• meaning 1")
+
+
+TEST_VERB = {
+    "definition": "to check how good or reliable something is",
+    "vietnamese": "kiểm tra",
+    "partOfSpeech": "verb",
+    "ipa": "/test/",
+    "synonyms": ["check", "try"],
+    "examples": ["They test every engine."],
+    "popularity": 5,
+    "difficulty": 1,
+}
+TEST_NOUN = {
+    "definition": "a check of someone's knowledge or ability",
+    "vietnamese": "bài kiểm tra",
+    "partOfSpeech": "noun",
+    "ipa": "/test/",
+    "synonyms": ["exam", "check"],
+    "examples": ["I passed the driving test."],
+    "popularity": 5,
+    "difficulty": 1,
+}
+
+
+def test_related_parts_of_speech_become_one_card(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+):
+    clips: list[str] = []
+
+    def fake_chat(**_kwargs: Any) -> dict[str, Any]:
+        return {
+            "word": "test",
+            "results": [
+                {**TEST_VERB, "group": 1},
+                {**TEST_NOUN, "group": 1},
+                {**DEFINITION, "definition": "a hard situation", "group": 2},
+            ],
+        }
+
+    def fake_speech(**kwargs: Any) -> bytes:
+        clips.append(kwargs["instructions"])
+        return b"ID3fake"
+
+    monkeypatch.setattr("anki_card_creator.lookups.normal.chat_json", fake_chat)
+    monkeypatch.setattr("anki_card_creator.audio.speech_mp3", fake_speech)
+    found = client.post("/api/lookup", json={"type": "normal", "input": "test"})
+    payload = found.json()["payload"]
+    assert [[s["partOfSpeech"] for s in g] for g in payload["groups"]] == [
+        ["verb", "noun"],
+        ["verb"],
+    ]
+
+    deck_id = client.get("/api/decks").json()["defaultDeckId"]
+    created = client.post(
+        "/api/cards", json={"type": "normal", "deckId": deck_id, "payload": payload}
+    )
+    assert created.status_code == 200, created.text
+    assert created.json()["added"] == 2
+    assert len(clips) == 3  # one clip per part of speech
+
+    with _collection(client) as col:
+        notes = [col.get_note(nid) for nid in col.find_notes('"note:VIP Translate"')]
+        combined = next(n for n in notes if "sense-line" in n["Definition"])
+        assert combined["Word"] == "test"
+        assert combined["PartOfSpeech"] == ""
+        assert combined["Definition"].count('class="sense-line"') == 2
+        assert combined["Vietnamese"] == "(v) kiểm tra · (n) bài kiểm tra"
+        assert combined["Pronunciation"] == "/test/"
+        assert combined["Synonyms"] == "check, try, exam"
+        assert "<li>(n) I passed the driving test.</li>" in combined["Examples"]
+        assert combined["Audio"].count("[sound:") == 2

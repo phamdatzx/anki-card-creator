@@ -216,3 +216,23 @@ PHRASE_SCHEMA: dict[str, Any] = {
     },
     "required": ["phrase", "results"],
 }
+
+# Word Inbox's Normal lookup: same senses, plus which card each belongs to.
+GROUPED_DEFINITION_RESULT: dict[str, Any] = {
+    **DEFINITION_RESULT,
+    "properties": {
+        **DEFINITION_RESULT["properties"],
+        "group": {"type": "integer", "minimum": 1},
+    },
+    "required": [*DEFINITION_RESULT["required"], "group"],
+}
+
+NORMAL_GROUPED_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "additionalProperties": False,
+    "properties": {
+        "word": {"type": "string"},
+        "results": {"type": "array", "items": GROUPED_DEFINITION_RESULT},
+    },
+    "required": ["word", "results"],
+}

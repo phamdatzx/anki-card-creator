@@ -13,7 +13,8 @@ import {
 } from "./forms";
 import {
   CollocationList,
-  DefinitionList,
+  DefinitionGroupList,
+  type DefinitionGroup,
   PhraseList,
   VietnameseList,
   WordFormPanel,
@@ -27,7 +28,6 @@ import {
   type CardType,
   type CollocationItem,
   type PhraseSense,
-  type DefinitionResult,
   type Deck,
   type LookupResponse,
   type ModelState,
@@ -38,7 +38,7 @@ import {
 import "./App.css";
 
 type Result =
-  | { type: "normal"; word: string; items: Picked<DefinitionResult>[] }
+  | { type: "normal"; word: string; groups: DefinitionGroup[] }
   | { type: "vietnamese"; query: string; items: Picked<VietnameseResult>[] }
   | { type: "word_form"; base: WordFormItem; root: Draft; others: Picked<WordFormItem>[] }
   | { type: "word_pattern"; draft: Draft }
@@ -71,9 +71,21 @@ function byPattern(items: CollocationItem[]): CollocationItem[] {
 function toResult(response: LookupResponse): { result: Result | null; message: string } {
   switch (response.type) {
     case "normal": {
-      const { word, results } = response.payload;
-      return results.length
-        ? { result: { type: "normal", word, items: picked(results, false) }, message: "Select definitions; click Edit to change one." }
+      const { word, groups } = response.payload;
+      return groups.length
+        ? {
+            // Cards start unticked as before; the parts inside a card start ticked.
+            result: {
+              type: "normal",
+              word,
+              groups: picked(
+                groups.map((parts) => picked(parts, true)),
+                false,
+              ),
+            },
+            message:
+              "Each box is one card; related parts of speech share one. Tick cards, untick or Split parts, Edit to change.",
+          }
         : { result: null, message: `No definitions for "${word}".` };
     }
     case "vietnamese": {
@@ -123,12 +135,20 @@ function toResult(response: LookupResponse): { result: Result | null; message: s
   }
 }
 
+/** Ticked cards, each with only its ticked parts; empty cards are dropped. */
+function normalGroups(groups: DefinitionGroup[]) {
+  return groups
+    .filter((group) => group.checked)
+    .map((group) => group.data.filter((part) => part.checked).map((part) => part.data))
+    .filter((parts) => parts.length > 0);
+}
+
 function toPayload(result: Result): unknown {
   const checked = <T,>(items: Picked<T>[]) =>
     items.filter((item) => item.checked).map((item) => item.data);
   switch (result.type) {
     case "normal":
-      return { word: result.word, results: checked(result.items) };
+      return { word: result.word, groups: normalGroups(result.groups) };
     case "vietnamese":
       return { query: result.query, results: checked(result.items) };
     case "word_form":
@@ -400,7 +420,9 @@ export default function App() {
 
   const canCreate =
     result !== null &&
-    !("items" in result && result.items.every((item) => !item.checked));
+    (result.type === "normal"
+      ? normalGroups(result.groups).length > 0
+      : !("items" in result && result.items.every((item) => !item.checked)));
 
   return (
     <div className="app" onKeyDown={onKeyDown}>
@@ -518,7 +540,10 @@ export default function App() {
           {result.type === "normal" ? (
             <>
               <h2>{result.word}</h2>
-              <DefinitionList items={result.items} onChange={(items) => setResult({ ...result, items })} />
+              <DefinitionGroupList
+                groups={result.groups}
+                onChange={(groups) => setResult({ ...result, groups })}
+              />
             </>
           ) : null}
           {result.type === "vietnamese" ? (
