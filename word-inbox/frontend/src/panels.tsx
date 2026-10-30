@@ -100,8 +100,11 @@ function Definition({ item, word }: { item: DefinitionResult; word?: string }) {
   );
 }
 
-/** One Normal card per group; related parts of speech share a group. */
-export type DefinitionGroup = Picked<Picked<DefinitionResult>[]>;
+/**
+ * One Normal card per group; related parts of speech share a group. A group
+ * becomes a card when at least one of its meanings is ticked.
+ */
+export type DefinitionGroup = { key: string; data: Picked<DefinitionResult>[] };
 
 export function DefinitionGroupList({
   groups,
@@ -111,8 +114,6 @@ export function DefinitionGroupList({
   onChange: (next: DefinitionGroup[]) => void;
 }) {
   const [editing, setEditing] = useState<{ group: string; part: string } | null>(null);
-  const setGroup = (key: string, patch: Partial<DefinitionGroup>) =>
-    onChange(groups.map((group) => (group.key === key ? { ...group, ...patch } : group)));
   const setPart = (groupKey: string, partKey: string, patch: Partial<Picked<DefinitionResult>>) =>
     onChange(
       groups.map((group) =>
@@ -128,11 +129,7 @@ export function DefinitionGroupList({
     onChange(
       groups.flatMap((group) =>
         group.key === key
-          ? group.data.map((part) => ({
-              key: crypto.randomUUID(),
-              checked: group.checked,
-              data: [{ ...part, checked: true }],
-            }))
+          ? group.data.map((part) => ({ key: crypto.randomUUID(), data: [part] }))
           : [group],
       ),
     );
@@ -148,19 +145,9 @@ export function DefinitionGroupList({
           const parts = group.data.filter((part) => part.checked);
           const label = parts.map((part) => part.data.partOfSpeech || "?").join(" + ");
           return (
-            <li key={group.key} className={group.checked ? "pick group checked" : "pick group"}>
+            <li key={group.key} className={parts.length ? "pick group checked" : "pick group"}>
               <div className="group-head">
-                <label className="pick-main">
-                  <input
-                    type="checkbox"
-                    checked={group.checked}
-                    onChange={(e) => setGroup(group.key, { checked: e.target.checked })}
-                    aria-label={`Create card: ${label || "no parts"}`}
-                  />
-                  <span className="group-label">
-                    1 card · {label || "no part ticked"}
-                  </span>
-                </label>
+                <span className="group-label">1 card · {label || "not selected"}</span>
                 {group.data.length > 1 ? (
                   <button type="button" className="ghost small" onClick={() => split(group.key)}>
                     Split
@@ -169,18 +156,16 @@ export function DefinitionGroupList({
               </div>
               <ul className="parts">
                 {group.data.map((part) => (
-                  <li key={part.key} className={part.checked ? "part" : "part off"}>
+                  <li key={part.key} className="part">
                     <label className="pick-main">
-                      {group.data.length > 1 ? (
-                        <input
-                          type="checkbox"
-                          checked={part.checked}
-                          onChange={(e) =>
-                            setPart(group.key, part.key, { checked: e.target.checked })
-                          }
-                          aria-label={`Include ${part.data.partOfSpeech || "this part"}`}
-                        />
-                      ) : null}
+                      <input
+                        type="checkbox"
+                        checked={part.checked}
+                        onChange={(e) =>
+                          setPart(group.key, part.key, { checked: e.target.checked })
+                        }
+                        aria-label={`Select ${part.data.partOfSpeech || "meaning"}: ${part.data.definition}`}
+                      />
                       <div className="pick-body">
                         <Definition item={part.data} />
                       </div>
