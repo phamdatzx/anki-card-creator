@@ -484,10 +484,6 @@ mark.answer {
   border-top: 1px dashed var(--line);
 }
 
-.part.off .pick-body {
-  opacity: 0.45;
-}
-
 .input-note {
   margin: -0.3rem 0 0.8rem;
 }

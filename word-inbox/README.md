@@ -27,9 +27,9 @@ untouched.
 lookup groups senses that share one meaning across parts of speech. For example
 `test` as a verb (kiểm tra) and as a noun (bài kiểm tra) go together, while
 unrelated meanings stay separate.
-- Each box in the results is one card. Tick the cards you want.
-- Inside a box, untick a part to leave it out, or press **Split** to make one
-  card per part.
+- Each box in the results is one card. Tick the meanings you want: a box
+  becomes a card once any of its meanings is ticked, and unticked meanings are
+  left out. Press **Split** to make one card per part.
 - A combined card is still a `VIP Translate` note with the same fields:
   - the front lists each part as `verb …` / `noun …` lines
   - Vietnamese and examples are labelled `(v)` / `(n)`

@@ -76,20 +76,20 @@ function toResult(response: LookupResponse): { result: Result | null; message: s
       const { input, inputNote, word, groups, family } = response.payload;
       return groups.length || family.length
         ? {
-            // Cards start unticked as before; the parts inside a card start ticked.
+            // Meanings start unticked; a box becomes a card once one is ticked.
             result: {
               type: "normal",
               input,
               inputNote,
               word,
-              groups: picked(
-                groups.map((parts) => picked(parts, true)),
-                false,
-              ),
+              groups: groups.map((parts) => ({
+                key: crypto.randomUUID(),
+                data: picked(parts, false),
+              })),
               family: picked(family, false),
             },
             message:
-              "Each box is one card; related parts of speech share one. Tick the root's cards and any family words to learn.",
+              "Tick the meanings to learn; ticked meanings in one box make one card. Add any family words too.",
           }
         : { result: null, message: `No definitions for "${word}".` };
     }
@@ -133,10 +133,9 @@ function toResult(response: LookupResponse): { result: Result | null; message: s
   }
 }
 
-/** Ticked cards, each with only its ticked parts; empty cards are dropped. */
+/** Each card's ticked meanings; cards with none ticked are dropped. */
 function normalGroups(groups: DefinitionGroup[]) {
   return groups
-    .filter((group) => group.checked)
     .map((group) => group.data.filter((part) => part.checked).map((part) => part.data))
     .filter((parts) => parts.length > 0);
 }
