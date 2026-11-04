@@ -429,6 +429,7 @@ def test_inflected_input_gives_root_cards_and_family(
             "results": [{**DEFINITION, "group": 1}],
             "family": [
                 _member("decision", "noun", "quyết định"),
+                _member("decide", "noun", "sự quyết định"),  # repeats the root: dropped
                 _member("decisive", "adjective", "quyết đoán"),
                 _member("decisively", "adverb", "một cách quyết đoán"),
             ],

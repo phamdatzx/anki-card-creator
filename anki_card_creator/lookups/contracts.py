@@ -332,6 +332,7 @@ def validate_phrase_payload(value: Any) -> PhrasePayload:
 
 
 def validate_normal_grouped_payload(value: Any) -> NormalGroupedPayload:
+    """Family members that repeat the root or an earlier member are dropped."""
     payload = _mapping(value, "response")
     _require(payload, ("input", "word", "inputNote", "results", "family"), "response")
     _string(payload["input"], "response.input")
@@ -346,15 +347,16 @@ def validate_normal_grouped_payload(value: Any) -> NormalGroupedPayload:
     validate_vietnamese_payload({"query": payload["word"], "results": payload["family"]})
     root = payload["word"].strip().casefold()
     seen: set[tuple[str, str]] = set()
-    for index, member in enumerate(payload["family"]):
-        path = f"response.family[{index}]"
+    kept = []
+    for member in payload["family"]:
         key = (
             member["word"].strip().casefold(),
             member["partOfSpeech"].strip().casefold(),
         )
-        if key[0] == root:
-            raise ValueError(f"{path}.word must not repeat the root word")
-        if key in seen:
-            raise ValueError(f"{path} repeats an earlier family member")
+        # The model sometimes repeats these; one stray entry shouldn't fail the lookup.
+        if key[0] == root or key in seen:
+            continue
         seen.add(key)
+        kept.append(member)
+    payload["family"] = kept
     return cast(NormalGroupedPayload, payload)

@@ -70,13 +70,20 @@ def test_validator_checks_root_and_family():
         validate_normal_grouped_payload(_payload(word=" "))
     with pytest.raises(ValueError, match="inputNote"):
         validate_normal_grouped_payload(_payload(inputNote=None))
-    with pytest.raises(ValueError, match="must not repeat the root"):
-        validate_normal_grouped_payload(
-            _payload(family=[{**_sense(), "word": "Decide"}])
-        )
-    with pytest.raises(ValueError, match="repeats an earlier"):
-        member = {**_sense("noun"), "word": "decision"}
-        validate_normal_grouped_payload(_payload(family=[member, dict(member)]))
+    # The root (in any part of speech) and repeats are dropped, not fatal.
+    decision = {**_sense("noun"), "word": "decision"}
+    family = [
+        {**_sense("verb"), "word": "Decide"},
+        {**_sense("noun"), "word": " decide "},
+        decision,
+        dict(decision),
+        {**_sense("adjective"), "word": "decisive"},
+    ]
+    kept = validate_normal_grouped_payload(_payload(family=family))["family"]
+    assert [(m["word"], m["partOfSpeech"]) for m in kept] == [
+        ("decision", "noun"),
+        ("decisive", "adjective"),
+    ]
     with pytest.raises(ValueError, match="word"):
         validate_normal_grouped_payload(_payload(family=[{**_sense(), "word": ""}]))
     # Same word, different part of speech, is a different member.
@@ -108,6 +115,7 @@ def test_family_prompt_keeps_its_precision_rules():
         "Never undo derivation",
         "inputNote names the inflection",
         "results describe word, the headword",
+        "word itself in any part of speech",
         "its inflections (decides, decided",
         "at most once",
         "CHECK before answering",
