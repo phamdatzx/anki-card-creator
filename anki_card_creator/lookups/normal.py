@@ -81,9 +81,10 @@ input already is the headword.
 should learn together with word, e.g. for decide: decision (noun), decisive
 (adjective), decisively (adverb), indecisive (adjective). Each member must be
 a different word from word, and must differ from it in part of speech or in
-meaning. Never include: word itself, its inflections (decides, decided,
-deciding), compounds, phrasal verbs, or rare, archaic, dialect or technical
-words. List each (word, partOfSpeech) pair at most once, give only its most
+meaning. Never include: word itself in any part of speech (its other parts of
+speech, e.g. "test" as a noun when word is the verb "test", belong in
+results), its inflections (decides, decided, deciding), compounds, phrasal
+verbs, or rare, archaic, dialect or technical words. List each (word, partOfSpeech) pair at most once, give only its most
 common sense, and fill every field exactly as for results, including word,
 ipa, vietnamese, synonyms, examples, popularity and difficulty. List at most 8
 members, most frequent first; family is empty when word has no common family.
